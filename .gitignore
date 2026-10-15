@@ -48,3 +48,10 @@ qdrant_storage/
 
 # Wazuh
 wazuh/data/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
