@@ -1,0 +1,12 @@
+{
+  "alert": {"id": "FX-LNX-SUDO", "level": 10, "name": "Sudoers file modified", "timestamp": 1712000000000},
+  "host": {"hostname": "prod-web-01"},
+  "user": {"username": "www-data"},
+  "process": {
+    "pid": 3001,
+    "start_time": 1712000000000,
+    "name": "echo",
+    "args": "user ALL=(ALL) NOPASSWD:ALL >> /etc/sudoers"
+  },
+  "files": [{"path": "/etc/sudoers", "op": "write"}]
+}

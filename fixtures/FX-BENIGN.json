@@ -1,0 +1,12 @@
+{
+  "alert": {"id": "FX-BENIGN", "level": 4, "name": "Normal Usage", "timestamp": 1712000000000},
+  "host": {"hostname": "win-desktop-01"},
+  "user": {"username": "alice", "admin": false},
+  "process": {
+    "pid": 2002,
+    "start_time": 1712000000000,
+    "name": "notepad.exe",
+    "args": "document.txt"
+  },
+  "files": [{"path": "C:\\Users\\alice\\document.txt", "op": "read"}]
+}
