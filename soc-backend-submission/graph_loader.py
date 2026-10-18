@@ -13,7 +13,7 @@ def _get_severity(level: int) -> str:
 
 def load_event(session, event: Dict[str, Any]) -> None:
     alert = event.get("alert", {})
-    alert_id = alert.get("id")
+    alert_id = str(alert.get("id"))[:256] if alert.get("id") else None
     if not alert_id:
         return
 
@@ -38,7 +38,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
 
     host = event.get("host")
     if host:
-        hostname = host.get("hostname")
+        hostname = str(host.get("hostname"))[:256] if host.get("hostname") else None
         if hostname:
             query += """
             MERGE (h:Host {hostname: $hostname})
@@ -46,23 +46,23 @@ def load_event(session, event: Dict[str, Any]) -> None:
             """
             params.update({
                 "hostname": hostname,
-                "host_ip": host.get("ip"),
-                "host_os": host.get("os")
+                "host_ip": str(host.get("ip"))[:256] if host.get("ip") else None,
+                "host_os": str(host.get("os"))[:256] if host.get("os") else None
             })
 
     user = event.get("user")
     if user:
-        username = user.get("username")
+        username = str(user.get("username"))[:256] if user.get("username") else None
         if username:
             query += """
             MERGE (u:User {username: $username})
-            ON CREATE SET u.domain = $user_domain, u.admin = $user_admin
+            ON CREATE SET u.domain = $user_domain, u.admin = $user_admin, u.failed_logins = $failed_logins, u.last_failed = $last_failed
             ON MATCH SET u.failed_logins = COALESCE($failed_logins, u.failed_logins),
                          u.last_failed = COALESCE($last_failed, u.last_failed)
             """
             params.update({
                 "username": username,
-                "user_domain": user.get("domain"),
+                "user_domain": str(user.get("domain"))[:256] if user.get("domain") else None,
                 "user_admin": user.get("admin"),
                 "failed_logins": user.get("failed_logins"),
                 "last_failed": user.get("last_failed")
@@ -78,6 +78,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
             p_name = str(process.get("name", ""))[:256]
             p_path = str(process.get("path", ""))[:1024] if process.get("path") else None
             p_args = str(process.get("args", ""))[:4096] if process.get("args") else None
+            p_hash = str(process.get("hash", ""))[:256] if process.get("hash") else None
 
             query += """
             MERGE (p:Process {process_uid: $process_uid})
@@ -93,7 +94,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
                 "process_name": p_name,
                 "process_path": p_path,
                 "process_args": p_args,
-                "process_hash": process.get("hash")
+                "process_hash": p_hash
             })
             if user and username:
                 query += """
@@ -110,6 +111,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
                     pp_name = str(parent.get("name", ""))[:256]
                     pp_path = str(parent.get("path", ""))[:1024] if parent.get("path") else None
                     pp_args = str(parent.get("args", ""))[:4096] if parent.get("args") else None
+                    pp_hash = str(parent.get("hash", ""))[:256] if parent.get("hash") else None
 
                     query += """
                     MERGE (pp:Process {process_uid: $parent_uid})
@@ -126,7 +128,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
                         "parent_name": pp_name,
                         "parent_path": pp_path,
                         "parent_args": pp_args,
-                        "parent_hash": parent.get("hash")
+                        "parent_hash": pp_hash
                     })
 
             children = process.get("children", [])
@@ -156,7 +158,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
 
             networks = event.get("network", [])
             for i, net in enumerate(networks):
-                dest_ip = net.get("dest_ip")
+                dest_ip = str(net.get("dest_ip"))[:256] if net.get("dest_ip") else None
                 dest_port = net.get("dest_port")
                 if dest_ip and dest_port:
                     net_id = f"{dest_ip}:{dest_port}"
@@ -169,7 +171,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
                         f"net_id_{i}": net_id,
                         f"dest_ip_{i}": dest_ip,
                         f"dest_port_{i}": dest_port,
-                        f"protocol_{i}": net.get("protocol")
+                        f"protocol_{i}": str(net.get("protocol"))[:256] if net.get("protocol") else None
                     })
 
             files = event.get("files", [])
@@ -190,13 +192,14 @@ def load_event(session, event: Dict[str, Any]) -> None:
                     params.update({
                         f"file_uid_{i}": file_uid,
                         f"file_path_{i}": f_path,
-                        f"file_hash_{i}": f.get("hash"),
+                        f"file_hash_{i}": str(f.get("hash"))[:256] if f.get("hash") else None,
                         f"file_size_{i}": f.get("size")
                     })
 
     if host and hostname:
         logged_in_hosts = event.get("logged_in_hosts", [])
         for i, logged_host in enumerate(logged_in_hosts):
+            logged_host = str(logged_host)[:256]
             query += f"""
             MERGE (lh{i}:Host {{hostname: $logged_host_{i}}})
             """
@@ -208,6 +211,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
 
         scanned_hosts = event.get("scanned_hosts", [])
         for i, scanned_host in enumerate(scanned_hosts):
+            scanned_host = str(scanned_host)[:256]
             query += f"""
             MERGE (sh{i}:Host {{hostname: $scanned_host_{i}}})
             MERGE (h)-[:SCANNED]->(sh{i})

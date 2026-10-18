@@ -22,23 +22,51 @@ def test_wrong_key():
     resp = client.post("/ingest/events", json={"events": []}, headers={"x-api-key": "bad"})
     assert resp.status_code == 401
 
+def test_unauth_overrides_body():
+    # If not authenticated, we should get 401 before getting a 422 for bad body
+    os.environ["INGEST_API_KEY"] = "secret"
+    resp = client.post("/ingest/events", data="invalid json format", headers={"x-api-key": "bad"})
+    assert resp.status_code == 401
+
 def test_too_large_content_length():
     os.environ["INGEST_API_KEY"] = "secret"
     resp = client.post("/ingest/events", json={"events": []}, headers={"x-api-key": "secret", "content-length": "11000000"})
     assert resp.status_code == 413
 
+def test_bad_payload_events_not_list():
+    os.environ["INGEST_API_KEY"] = "secret"
+    resp = client.post("/ingest/events", json={"events": "string"}, headers={"x-api-key": "secret"})
+    assert resp.status_code == 422
+
+def test_too_many_events():
+    os.environ["INGEST_API_KEY"] = "secret"
+    resp = client.post("/ingest/events", json={"events": [{}] * 501}, headers={"x-api-key": "secret"})
+    assert resp.status_code == 413
+
 @patch('ingest_router.load_event')
-def test_success_with_driver(mock_load_event):
+def test_partial_rejects(mock_load_event):
     os.environ["INGEST_API_KEY"] = "secret"
 
     mock_driver = MagicMock()
     app.dependency_overrides[get_driver] = lambda: mock_driver
 
-    evt = {"alert": {"id": "1", "timestamp": 123}, "process": {"pid": 1, "start_time": 123}}
-    resp = client.post("/ingest/events", json={"events": [evt]}, headers={"x-api-key": "secret"})
+    # 1 valid, 1 invalid (missing alert id), 1 invalid (bad timestamp)
+    events = [
+        {"alert": {"id": "1", "timestamp": 1234567890000}},
+        {"alert": {"timestamp": 1234567890000}},
+        {"alert": {"id": "3", "timestamp": 123}}
+    ]
+    resp = client.post("/ingest/events", json={"events": events}, headers={"x-api-key": "secret"})
 
     assert resp.status_code == 200
-    assert resp.json()["accepted"] == 1
-    assert mock_load_event.called
+    data = resp.json()
+    assert data["accepted"] == 1
+    assert len(data["rejected"]) == 2
+
+    assert data["rejected"][0]["index"] == 1
+    assert data["rejected"][0]["reason"] == "Invalid event"
+
+    assert data["rejected"][1]["index"] == 2
+    assert data["rejected"][1]["reason"] == "timestamp must be epoch milliseconds"
 
     app.dependency_overrides.clear()

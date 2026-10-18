@@ -1,33 +1,22 @@
 {
   "events": [
     {
-      "alert": {"id": "AL-WIN-100", "level": 8, "name": "Suspicious PowerShell", "timestamp": 1700000000, "mitre": ["T1059.001"]},
+      "alert": {"id": "FX-WIN-100", "level": 8, "name": "Suspicious PowerShell", "timestamp": 1790928930000, "mitre": ["T1059.001"]},
       "host": {"hostname": "WIN-SRV-01", "ip": "10.0.0.5", "os": "Windows"},
-      "user": {"username": "svc_admin", "admin": true},
+      "user": {"username": "bob", "admin": true},
       "process": {
-        "pid": 2048, "start_time": 1699999000, "name": "outlook.exe",
+        "pid": 2048, "start_time": 1790928929000, "name": "outlook.exe",
         "children": [
           {
             "pid": 4012,
-            "start_time": 1700000000,
+            "start_time": 1790928930000,
             "name": "powershell.exe",
             "args": "powershell.exe -ExecutionPolicy Bypass -File C:\\temp\\loader.ps1"
           }
         ]
-      }
-    },
-    {
-      "alert": {"id": "AL-WIN-100", "level": 8, "name": "Credential Access", "timestamp": 1700000005},
-      "host": {"hostname": "WIN-SRV-01"},
-      "process": {"pid": 2048, "start_time": 1699999000, "name": "outlook.exe"},
-      "files": [{"path": "C:\\Windows\\System32\\config\\SAM", "op": "read"}]
-    },
-    {
-      "alert": {"id": "AL-WIN-100", "level": 8, "name": "Data Exfil", "timestamp": 1700000010},
-      "host": {"hostname": "WIN-SRV-01"},
-      "process": {"pid": 2048, "start_time": 1699999000, "name": "outlook.exe"},
-      "files": [{"path": "C:\\temp\\creds.zip", "op": "read"}],
-      "network": [{"dest_ip": "198.51.100.2", "dest_port": 443, "protocol": "TCP"}]
+      },
+      "files": [{"path": "C:\\Windows\\System32\\config\\SAM", "op": "read"}],
+      "network": [{"dest_ip": "5.6.7.8", "dest_port": 443, "protocol": "TCP"}]
     }
   ]
 }

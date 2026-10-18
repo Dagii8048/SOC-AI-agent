@@ -18,8 +18,30 @@ def test_load_event_executes_query():
     args, kwargs = session_mock.run.call_args
     query = args[0]
 
+    # Check that parameters are passed properly
     assert "MERGE (a:Alert {id: $alert_id})" in query
     assert "MERGE (p:Process {process_uid: $process_uid})" in query
 
+    # Check parameter values
     assert kwargs["alert_id"] == "123"
     assert kwargs["process_uid"] == "testhost:100:12345"
+
+    # Assert query parametrization instead of raw strings
+    assert "$process_uid" in query
+    assert "$alert_id" in query
+    assert "123" not in query # No direct injection
+    assert "testhost" not in query
+
+def test_length_caps_and_missing_optional():
+    session_mock = Mock()
+    event = {
+        "alert": {"id": "1", "level": 5, "name": "A"*300, "timestamp": 123},
+        # No host/process, but with a huge username
+        "user": {"username": "B"*300}
+    }
+    load_event(session_mock, event)
+    args, kwargs = session_mock.run.call_args
+
+    # Name is capped to 256
+    assert len(kwargs["alert_name"]) == 256
+    assert kwargs["username"] == "B"*256

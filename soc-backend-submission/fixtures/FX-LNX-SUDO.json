@@ -1,13 +1,12 @@
 {
   "events": [
     {
-      "alert": {"id": "AL-LNX-200", "level": 10, "name": "Sudoers Modification", "timestamp": 1700001000, "mitre": ["T1548.003"]},
-      "host": {"hostname": "LNX-WEB-02", "ip": "10.0.0.10", "os": "Linux"},
+      "alert": {"id": "FX-LNX-200", "level": 10, "name": "Sudoers Modification", "timestamp": 1790928950000, "mitre": ["T1548.003"]},
+      "host": {"hostname": "prod-web-01", "ip": "10.0.0.10", "os": "Linux"},
       "user": {"username": "www-data", "admin": false},
       "process": {
-        "pid": 11054, "start_time": 1700001000, "name": "echo",
-        "args": "echo 'www-data ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers",
-        "parent": {"pid": 1000, "start_time": 1699990000, "name": "apache2"}
+        "pid": 11054, "start_time": 1790928950000, "name": "echo",
+        "args": "echo 'www-data ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers"
       },
       "files": [{"path": "/etc/sudoers", "op": "write"}]
     }

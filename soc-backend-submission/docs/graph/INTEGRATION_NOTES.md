@@ -10,8 +10,16 @@
 - Note that `get_alert_subgraph` and `investigate_alert` are in `graph_queries.py`.
 - Auth is now handled as a FastAPI dependency in the router, returning 503 or 401 before body parsing.
 - A content-length cap of 10MB has been added before parsing the JSON.
-- `neo4j_driver` is now expected to be managed via environment variables and lazy initialization via `get_driver()` instead of `app.state`. A `close_driver()` hook is available for shutdown.
 - Validations happen per event individually, so you will receive partial accepted/rejected counts.
+- `app.include_router(ingest_router.router)` must be added to your FastAPI startup to mount the ingestion routes.
+- `neo4j_driver` is managed via environment variables. Make sure to call `ingest_router.close_driver()` on application shutdown.
+- Ensure CORS is configured for `http://localhost:5173`.
+- `tasks.py` currently returns `{"error": ...}` inside a 200 OK success envelope for missing investigations. Please use `investigate_alert`'s explicit `{"found": False}` flag instead.
+- Note that `/actions/execute` has no auth and posts to httpbin.org.
 
 ## Wakjira
 - Use the `get_alert_subgraph` shape and map node types to your labels. Nodes now carry the appropriate domain ID instead of internal Neo4j node IDs.
+
+## Teferi
+- When integrating with the graph for RAG, the input shape should be constructed safely.
+- Please sanitize and truncate log strings appropriately before injecting them into the LLM prompt to prevent prompt injection attacks or overwhelming token limits.

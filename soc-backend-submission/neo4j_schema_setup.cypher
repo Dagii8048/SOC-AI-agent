@@ -71,3 +71,6 @@ FOR (p:Process) ON (p.process_uid);
 // alerts (no process attribution) are expected, consider adding a second
 // relationship, e.g. Alert-[:DETECTED_ON]->Host or Alert-[:DETECTED_ON]->User,
 // rather than forcing every alert through a Process node.
+
+CREATE CONSTRAINT file_uid_unique IF NOT EXISTS FOR (f:File) REQUIRE f.file_uid IS UNIQUE;
+CREATE CONSTRAINT network_id_unique IF NOT EXISTS FOR (n:Network) REQUIRE n.id IS UNIQUE;

@@ -3,14 +3,25 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from unittest.mock import MagicMock
-from pattern_library import match_patterns
+from pattern_library import match_patterns, PATTERNS
 from pattern_evaluator import evaluate_patterns
 
 def test_pattern_evaluator():
-    assert evaluate_patterns([{"id": "P-001"}, {"id": "P-003"}, {"id": "P-007"}]) == ("CRITICAL", True, "Discovery and Exfiltration")
+    assert evaluate_patterns([{"id": "P-001"}, {"id": "P-003"}, {"id": "P-007"}]) == ("CRITICAL", True, "Phishing -> Credential Dumping -> Exfiltration")
     assert evaluate_patterns([{"id": "P-022"}, {"id": "P-021"}]) == ("CRITICAL", True, "Linux Privilege Escalation and Reverse Shell")
     assert evaluate_patterns([{"id": "P-001"}]) == ("MEDIUM", False, None)
     assert evaluate_patterns([]) == ("LOW", False, None)
+    assert evaluate_patterns([{"id": "P-001"}, {"id": "P-002"}, {"id": "P-003"}]) == ("HIGH", False, None)
+
+def test_all_22_patterns_exist():
+    assert len(PATTERNS) == 22
+    ids = [p["id"] for p in PATTERNS]
+    for i in range(1, 23):
+        assert f"P-{i:03}" in ids
+
+    # Original MITRE validation for a few
+    p001 = next(p for p in PATTERNS if p["id"] == "P-001")
+    assert p001["mitre"] == "T1059.001"
 
 def test_compatibility_replay():
     driver = MagicMock()

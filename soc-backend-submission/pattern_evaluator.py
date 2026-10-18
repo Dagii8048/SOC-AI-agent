@@ -1,6 +1,12 @@
+"""
+pattern_evaluator.py
+Role 2 (Graph Engineer) module.
+Evaluates the matched patterns against known kill chains.
+"""
+
 KNOWN_KILL_CHAINS = [
     {
-        "name": "Discovery and Exfiltration",
+        "name": "Phishing -> Credential Dumping -> Exfiltration",
         "stages": ["P-001", "P-003", "P-007"],
     },
     {

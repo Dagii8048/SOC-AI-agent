@@ -2,9 +2,13 @@ from pattern_library import match_patterns
 from pattern_evaluator import evaluate_patterns
 
 def get_alert_subgraph(driver, alert_id):
+    # Retrieve the alert and its immediate connections up to 3 hops away,
+    # but do NOT traverse THROUGH Host or User nodes beyond 1 hop.
+    # This prevents the subgraph from exploding by connecting unrelated processes that happen to share a host or user.
     query = """
     MATCH p=(a:Alert {id: $alert_id})-[*1..3]-(n)
     WHERE ALL(r IN relationships(p) WHERE type(r) IN ['TRIGGERED_BY', 'OWNS', 'SPAWNED', 'RUNS_ON', 'CONNECTED_TO', 'READS', 'WRITES'])
+      AND NONE(x IN nodes(p)[1..-1] WHERE 'Host' IN labels(x) OR 'User' IN labels(x))
     RETURN nodes(p) AS nodes, relationships(p) AS edges
     LIMIT 200
     """

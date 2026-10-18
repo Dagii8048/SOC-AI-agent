@@ -15,8 +15,15 @@ def seed():
 
     driver = GraphDatabase.driver(uri, auth=(user, password))
     with driver.session() as session:
-        # Clear existing
-        session.run("MATCH (n) DETACH DELETE n")
+        # Clear existing FX- alerts and ONLY the processes strictly triggered by them.
+        # We must NOT delete shared Hosts or Users, nor traverse into other Alerts.
+        session.run("""
+        MATCH (a:Alert)
+        WHERE a.id STARTS WITH 'FX-'
+        OPTIONAL MATCH (a)-[:TRIGGERED_BY]->(p:Process)
+        OPTIONAL MATCH (p)-[:SPAWNED*1..5]->(child:Process)
+        DETACH DELETE a, p, child
+        """)
 
         fixtures_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fixtures")
         for fix_file in glob.glob(os.path.join(fixtures_dir, "*.json")):
