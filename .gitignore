@@ -1,2 +1,58 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-*
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+*.egg-info/
+.pytest_cache/
+*.cfg
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+*.log
+
+# local secrets: URL and API key live in environment variables, never in the repo
+.env
+.env.local
+*.env
+secrets/
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# LLM Models (Do NOT commit large model files)
+*.gguf
+*.bin
+*.safetensors
+models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Neo4j
+neo4j/data/
+neo4j/logs/
+
+# Qdrant
+qdrant_storage/
+
+# Wazuh
+wazuh/data/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
