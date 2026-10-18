@@ -74,3 +74,7 @@ FOR (p:Process) ON (p.process_uid);
 
 CREATE CONSTRAINT file_uid_unique IF NOT EXISTS FOR (f:File) REQUIRE f.file_uid IS UNIQUE;
 CREATE CONSTRAINT network_id_unique IF NOT EXISTS FOR (n:Network) REQUIRE n.id IS UNIQUE;
+
+// Note (Additive): The [:DETECTED_ON] relationship links an Alert directly to a Host.
+// This is created for all events that contain host information, ensuring that alerts
+// without a specific triggering process can still be anchored to the graph and correlated.

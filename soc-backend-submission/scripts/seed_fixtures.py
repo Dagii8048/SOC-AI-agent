@@ -14,7 +14,7 @@ def seed():
     from graph_loader import load_event
 
     driver = GraphDatabase.driver(uri, auth=(user, password))
-    with driver.session() as session:
+    with driver.session(database=os.environ.get("NEO4J_DATABASE") or None) as session:
         # Clear existing FX- alerts and ONLY the processes strictly triggered by them.
         # We must NOT delete shared Hosts or Users, nor traverse into other Alerts.
         session.run("""

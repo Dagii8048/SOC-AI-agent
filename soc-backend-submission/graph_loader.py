@@ -43,6 +43,7 @@ def load_event(session, event: Dict[str, Any]) -> None:
             query += """
             MERGE (h:Host {hostname: $hostname})
             ON CREATE SET h.ip = $host_ip, h.os = $host_os
+            MERGE (a)-[:DETECTED_ON]->(h)
             """
             params.update({
                 "hostname": hostname,

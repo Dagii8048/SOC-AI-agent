@@ -22,6 +22,22 @@ def main():
     import seed_fixtures
     seed_fixtures.seed()
 
+    print("\n--- Verifying FX-WAZUH-NOPROC ---")
+    res = investigate_alert(driver, "FX-WAZUH-100")
+    assert res["found"] is True, "FX-WAZUH-100 not found"
+    assert len(res["matched_patterns"]) == 0, "Expected 0 patterns"
+    assert res["confidence"] == "LOW", "Expected LOW"
+
+    from graph_queries import get_alert_subgraph
+    sg = get_alert_subgraph(driver, "FX-WAZUH-100")
+    has_detected_on = False
+    for edge in sg.get("edges", []):
+        if edge.get("type") == "DETECTED_ON" and edge.get("to") == "prod-web-01":
+            has_detected_on = True
+            break
+    assert has_detected_on is True, "Missing DETECTED_ON edge to prod-web-01"
+    print("FX-WAZUH-NOPROC passed.")
+
     print("\n--- Verifying FX-WIN-KILLCHAIN ---")
     res = investigate_alert(driver, "FX-WIN-100")
     print(res)

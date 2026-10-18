@@ -1,3 +1,4 @@
+import os
 from pattern_library import match_patterns
 from pattern_evaluator import evaluate_patterns
 
@@ -7,12 +8,12 @@ def get_alert_subgraph(driver, alert_id):
     # This prevents the subgraph from exploding by connecting unrelated processes that happen to share a host or user.
     query = """
     MATCH p=(a:Alert {id: $alert_id})-[*1..3]-(n)
-    WHERE ALL(r IN relationships(p) WHERE type(r) IN ['TRIGGERED_BY', 'OWNS', 'SPAWNED', 'RUNS_ON', 'CONNECTED_TO', 'READS', 'WRITES'])
+    WHERE ALL(r IN relationships(p) WHERE type(r) IN ['TRIGGERED_BY', 'OWNS', 'SPAWNED', 'RUNS_ON', 'CONNECTED_TO', 'READS', 'WRITES', 'DETECTED_ON'])
       AND NONE(x IN nodes(p)[1..-1] WHERE 'Host' IN labels(x) OR 'User' IN labels(x))
     RETURN nodes(p) AS nodes, relationships(p) AS edges
     LIMIT 200
     """
-    with driver.session() as session:
+    with driver.session(database=os.environ.get("NEO4J_DATABASE") or None) as session:
         result = session.run(query, alert_id=alert_id)
         nodes = {}
         edges = []
@@ -69,13 +70,13 @@ def investigate_alert(driver, alert_id):
 
 def correlate_host_alerts(driver, alert_id, window_ms=1800000):
     query = """
-    MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(:Process)-[:RUNS_ON]->(h:Host)
-    MATCH (other:Alert)-[:TRIGGERED_BY]->(:Process)-[:RUNS_ON]->(h)
+    MATCH (a:Alert {id: $alert_id})-[:DETECTED_ON]->(h:Host)
+    MATCH (other:Alert)-[:DETECTED_ON]->(h)
     WHERE other.id <> $alert_id
       AND abs(other.timestamp - a.timestamp) <= $window_ms
     RETURN collect(other.id) AS correlated_ids
     """
-    with driver.session() as session:
+    with driver.session(database=os.environ.get("NEO4J_DATABASE") or None) as session:
         res = session.run(query, alert_id=alert_id, window_ms=window_ms)
         record = res.single()
 
@@ -94,3 +95,47 @@ def correlate_host_alerts(driver, alert_id, window_ms=1800000):
 
         confidence, kc_detected, kc_name = evaluate_patterns(all_matched_patterns)
         return {"severity": confidence, "kill_chain": kc_name}
+
+def to_cytoscape(subgraph):
+    cytoscape_nodes = []
+    cytoscape_edges = []
+
+    for node in subgraph.get("nodes", []):
+        node_id = node.get("id")
+        labels = node.get("labels", [])
+        props = node.get("props", {})
+
+        label = node_id
+        if "Alert" in labels and "name" in props:
+            label = props["name"]
+        elif "Host" in labels and "hostname" in props:
+            label = props["hostname"]
+        elif "User" in labels and "username" in props:
+            label = props["username"]
+        elif "Process" in labels and "name" in props:
+            label = props["name"]
+        elif "File" in labels and "path" in props:
+            label = props["path"]
+        elif "Network" in labels and "id" in props:
+            label = props["id"]
+
+        data = {"id": node_id, "label": label, "type": labels[0] if labels else "Unknown"}
+        data.update(props)
+        cytoscape_nodes.append({"data": data})
+
+    for edge in subgraph.get("edges", []):
+        source = edge.get("from")
+        target = edge.get("to")
+        edge_type = edge.get("type")
+        edge_id = f"{source}|{edge_type}|{target}"
+
+        cytoscape_edges.append({
+            "data": {
+                "id": edge_id,
+                "source": source,
+                "target": target,
+                "type": edge_type
+            }
+        })
+
+    return {"nodes": cytoscape_nodes, "edges": cytoscape_edges}

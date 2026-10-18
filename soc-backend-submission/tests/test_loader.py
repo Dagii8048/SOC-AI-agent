@@ -32,6 +32,37 @@ def test_load_event_executes_query():
     assert "123" not in query # No direct injection
     assert "testhost" not in query
 
+def test_loader_detected_on():
+    session_mock = Mock()
+    event = {
+        "alert": {"id": "123", "level": 12, "name": "test", "timestamp": 1234567890000},
+        "host": {"hostname": "testhost"}
+    }
+    load_event(session_mock, event)
+    assert session_mock.run.called
+    args, kwargs = session_mock.run.call_args
+    query = args[0]
+    assert "MERGE (a:Alert {id: $alert_id})" in query
+    assert "MERGE (h:Host {hostname: $hostname})" in query
+    assert "MERGE (a)-[:DETECTED_ON]->(h)" in query
+    assert "123" not in query
+    assert "testhost" not in query
+    assert kwargs["hostname"] == "testhost"
+
+def test_loader_with_process():
+    session_mock = Mock()
+    event = {
+        "alert": {"id": "123", "level": 12, "name": "test"},
+        "host": {"hostname": "testhost"},
+        "process": {"pid": 100, "start_time": 12345, "name": "test.exe"}
+    }
+    load_event(session_mock, event)
+    args, kwargs = session_mock.run.call_args
+    query = args[0]
+    assert "MERGE (a)-[:DETECTED_ON]->(h)" in query
+    assert "MERGE (a)-[:TRIGGERED_BY]->(p)" in query
+    assert "MERGE (p)-[:RUNS_ON]->(h)" in query
+
 def test_length_caps_and_missing_optional():
     session_mock = Mock()
     event = {

@@ -138,7 +138,7 @@ def ingest_events(
     accepted = 0
     rejected = []
 
-    with driver.session() as session:
+    with driver.session(database=os.environ.get("NEO4J_DATABASE") or None) as session:
         for i, raw_event in enumerate(events):
             try:
                 validated_event = EventSchema(**raw_event)

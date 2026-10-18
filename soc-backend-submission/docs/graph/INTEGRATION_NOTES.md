@@ -23,3 +23,17 @@
 ## Teferi
 - When integrating with the graph for RAG, the input shape should be constructed safely.
 - Please sanitize and truncate log strings appropriately before injecting them into the LLM prompt to prevent prompt injection attacks or overwhelming token limits.
+
+## Database Name
+Tale: You can set `NEO4J_DATABASE` in your environment (e.g. `NEO4J_DATABASE=neo4j`) when connecting to Neo4j Aura clusters that fail to resolve the default home database.
+
+## Graph Formats
+Wakjira: `graph_queries.to_cytoscape(subgraph)` handles formatting for Cytoscape.js.
+- **Original Subgraph**: `{"nodes": [...], "edges": [{"from", "to", "type"}]}`
+- **Cytoscape**: `{"nodes": [{"data": {"id", "label", "type", ...props}}], "edges": [{"data": {"id", "source", "target", "type"}}]}`
+
+## Integration risks
+- Teferi and Dagi: our "confidence" is LOW/MEDIUM/HIGH/CRITICAL (a word). Dagi's classifier "confidence" is a number from 0 to 1. Use different names in the orchestrator.
+- The ML classifier maps unseen alert types to the last known type. auto_close must be disabled when the alert type is not in the encoder's classes.
+- Correlation window: our default is 30 minutes (1800000 ms), Beka's ETL clusters over 15 minutes. The team must pick one.
+- Tale: his submitted tasks.py returns {"error"} inside a 200 and does not call the classifier or RAG.

@@ -1,3 +1,4 @@
+import os
 """
 pattern_library.py
 Role 2 (Graph Engineer, Amir) — Week 1 Deliverable
@@ -285,7 +286,7 @@ PATTERNS: list[dict[str, str]] = [
 
 def match_patterns(driver: Any, alert_id: str) -> list[dict[str, str]]:
     matched = []
-    with driver.session() as session:
+    with driver.session(database=os.environ.get("NEO4J_DATABASE") or None) as session:
         for pattern in PATTERNS:
             result = session.run(pattern["cypher"], alert_id=alert_id)
             if result.peek() is not None:
