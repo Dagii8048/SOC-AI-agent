@@ -3,20 +3,111 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
+from datetime import timezone, timedelta
+import re
+
 # --- Timestamp Normalizer ---
+def to_epoch_ms(ts_val: Any) -> Optional[int]:
+    """Converts either ISO string or unix epoch to integer UTC milliseconds."""
+    if ts_val is None or isinstance(ts_val, bool):
+        return None
+
+    if isinstance(ts_val, (int, float)):
+        try:
+            val = float(ts_val)
+            if val < 100000000000: # seconds
+                return int(val * 1000)
+            else: # milliseconds
+                return int(val)
+        except Exception:
+            return None
+
+    if isinstance(ts_val, str):
+        ts_val = ts_val.strip()
+        if not ts_val:
+            return None
+
+        # Try numeric string
+        if ts_val.isdigit() or (ts_val.startswith('-') and ts_val[1:].isdigit()):
+            try:
+                val = float(ts_val)
+                if val < 100000000000:
+                    return int(val * 1000)
+                else:
+                    return int(val)
+            except Exception:
+                pass
+
+        try:
+            # Clean up the string to ensure a standard ISO format
+            # Replace space with T
+            ts_str = ts_val.replace(' ', 'T')
+
+            # Extract fractional seconds
+            frac_ms = 0
+            if '.' in ts_str:
+                parts = ts_str.split('.')
+                main_part = parts[0]
+                rest = parts[1]
+
+                # Extract digits after dot for ms
+                frac_digits = ""
+                for c in rest:
+                    if c.isdigit():
+                        frac_digits += c
+                    else:
+                        break
+
+                if frac_digits:
+                    # Truncate or pad to exactly 3 digits for ms
+                    ms_str = (frac_digits + "000")[:3]
+                    frac_ms = int(ms_str)
+                    ts_str = main_part + rest[len(frac_digits):]
+                else:
+                    ts_str = main_part + rest
+
+            # Replace 'Z' with +0000
+            if ts_str.endswith('Z'):
+                ts_str = ts_str[:-1] + '+0000'
+
+            # Adjust timezones like +0300 or +03:00 or -0400 or missing
+            tz_offset = timezone.utc
+
+            # Look for + or - at the end
+            match = re.search(r'([+-])(\d{2}):?(\d{2})$', ts_str)
+            if match:
+                sign = 1 if match.group(1) == '+' else -1
+                hours = int(match.group(2))
+                mins = int(match.group(3))
+                tz_offset = timezone(timedelta(hours=sign * hours, minutes=sign * mins))
+                ts_str = ts_str[:match.start()]
+
+            # Now we have clean ts_str like "YYYY-MM-DDTHH:MM:SS"
+            dt = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S")
+            # Make it timezone-aware
+            dt = dt.replace(tzinfo=tz_offset)
+
+            # Convert to UTC
+            dt_utc = dt.astimezone(timezone.utc)
+
+            # Calculate total seconds from epoch
+            epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+            delta = dt_utc - epoch
+
+            total_seconds = int(delta.total_seconds())
+            return total_seconds * 1000 + frac_ms
+
+        except Exception:
+            return None
+
+    return None
+
 def to_unix_seconds(ts_val: Any) -> int:
     """Converts either ISO string or unix epoch to integer seconds."""
-    if isinstance(ts_val, (int, float)):
-        return int(ts_val)
-    if isinstance(ts_val, str):
-        try:
-            # Handle ISO formats like "2026-10-02T08:15:30.120+0000"
-            clean_ts = ts_val.split(".")[0].replace("Z", "")
-            dt = datetime.strptime(clean_ts, "%Y-%m-%dT%H:%M:%S")
-            return int(dt.timestamp())
-        except Exception:
-            return 0
-    return 0
+    ms = to_epoch_ms(ts_val)
+    if ms is None:
+        return 0
+    return ms // 1000
 
 # --- Parsers ---
 def parse_wazuh_entry(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
