@@ -1,15 +1,16 @@
 """
 pattern_library.py
-Role 2 (Graph Engineer, Amir) — Week 1 Deliverable
-20 hardcoded Cypher patterns mapped to MITRE ATT&CK techniques.
-Source: Blueprint v2.0, Section 5.1 / 5.2, with the Section 5.2 flag fixed.
+Role 2 (Graph Engineer) support module.
+Pattern matching rules using Cypher queries against Neo4j.
+Source: Blueprint v2.0, Section 7.1, with Section 7.1.1 fixes applied.
 
 FIXES APPLIED
 -------------
-1. Alert binding: every pattern now starts from
-       MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
-   The original match_patterns() concatenated a raw
-       WHERE a.id = '{alert_id}'
+1. Missing anchors: the original blueprint had queries like
+   `MATCH (u:User)-[:OWNS]->(p)-[:SPAWNED]->(c:Process)` with no link to
+   the actual alert being investigated. This essentially said "if ANY user
+   ever spawned ANY powershell anywhere in the graph, this alert is
+   critical." I added `MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p)`
    onto every query string, but several patterns (old P-002, P-009, P-018)
    had no `a` variable in scope at all, so that clause failed to bind and
    those patterns silently returned nothing. Every pattern below is
@@ -39,8 +40,7 @@ the ETL's node-creation step before these patterns will return real matches.
 
 from typing import Any
 
-
-PATTERN_LIBRARY: list[dict[str, str]] = [
+PATTERNS: list[dict[str, str]] = [
     {
         "id": "P-001",
         "name": "Phishing Payload",
@@ -68,10 +68,10 @@ PATTERN_LIBRARY: list[dict[str, str]] = [
         "id": "P-003",
         "name": "Credential Dumping",
         "mitre": "T1003.002",
-        "cypher": """
+        "cypher": r"""
             MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
             MATCH (p)-[:READS]->(f:File)
-            WHERE f.path CONTAINS "SAM" OR f.path CONTAINS "NTDS"
+            WHERE f.path =~ '(?i).*\\\\config\\\\SAM$' OR f.path =~ '(?i).*\\\\NTDS\\\\ntds\\.dit$'
             RETURN a, p, f
         """,
     },
@@ -123,10 +123,10 @@ PATTERN_LIBRARY: list[dict[str, str]] = [
         "id": "P-008",
         "name": "Persistence Mechanism",
         "mitre": "T1547",
-        "cypher": """
+        "cypher": r"""
             MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
             MATCH (p)-[:WRITES]->(f:File)
-            WHERE f.path CONTAINS "Startup" OR f.path CONTAINS "Run"
+            WHERE f.path =~ '(?i).*\\\\CurrentVersion\\\\Run\\\\.*' OR f.path =~ '(?i).*\\\\Startup\\\\.*'
             RETURN a, p, f
         """,
     },
@@ -260,47 +260,36 @@ PATTERN_LIBRARY: list[dict[str, str]] = [
             RETURN a, p, n
         """,
     },
+    {
+        "id": "P-021",
+        "name": "Reverse Shell (Unix)",
+        "mitre": "T1059.004",
+        "cypher": """
+            MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
+            WHERE p.args CONTAINS '/dev/tcp/' OR p.args CONTAINS 'nc -e' OR p.args CONTAINS 'netcat -e'
+            RETURN a, p
+        """,
+    },
+    {
+        "id": "P-022",
+        "name": "Sudoers Modification",
+        "mitre": "T1548.003",
+        "cypher": """
+            MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
+            OPTIONAL MATCH (p)-[:WRITES]->(f:File)
+            WITH a, p, f
+            WHERE p.args CONTAINS '/etc/sudoers' OR (f IS NOT NULL AND f.path STARTS WITH '/etc/sudoers')
+            RETURN a, p, f
+        """,
+    },
 ]
 
 
 def match_patterns(driver: Any, alert_id: str) -> list[dict[str, str]]:
-    """
-    Run every pattern in PATTERN_LIBRARY against a single alert.
-
-    Args:
-        driver: a neo4j.Driver instance (from GraphDatabase.driver(...))
-        alert_id: the Alert.id to investigate
-
-    Returns:
-        The subset of PATTERN_LIBRARY whose Cypher query returned at least
-        one row for this alert.
-    """
     matched = []
     with driver.session() as session:
-        for pattern in PATTERN_LIBRARY:
+        for pattern in PATTERNS:
             result = session.run(pattern["cypher"], alert_id=alert_id)
             if result.peek() is not None:
-                matched.append(pattern)
+                matched.append({k: v for k, v in pattern.items() if k != "cypher"})
     return matched
-
-
-if __name__ == "__main__":
-    # Quick manual smoke test -- adjust URI/auth to your local Neo4j instance.
-    import os
-    from neo4j import GraphDatabase
-
-    driver = GraphDatabase.driver(
-        os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
-        auth=(
-            os.environ.get("NEO4J_USER", "neo4j"),
-            os.environ.get("NEO4J_PASSWORD", "password"),
-        ),
-    )
-    try:
-        test_alert_id = "A-123"
-        hits = match_patterns(driver, test_alert_id)
-        print(f"Alert {test_alert_id} matched {len(hits)} pattern(s):")
-        for h in hits:
-            print(f"  {h['id']} - {h['name']} ({h['mitre']})")
-    finally:
-        driver.close()

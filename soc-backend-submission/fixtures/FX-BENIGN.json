@@ -1,0 +1,15 @@
+{
+  "events": [
+    {
+      "alert": {"id": "AL-BENIGN-01", "level": 2, "name": "System Update", "timestamp": 1700003000, "mitre": []},
+      "host": {"hostname": "WIN-DESK-05", "ip": "10.0.0.50", "os": "Windows"},
+      "user": {"username": "jdoe", "admin": false},
+      "process": {
+        "pid": 5510, "start_time": 1700003000, "name": "wuauclt.exe",
+        "args": "wuauclt.exe /ReportNow",
+        "parent": {"pid": 1000, "start_time": 1699990000, "name": "svchost.exe"}
+      },
+      "network": [{"dest_ip": "20.189.173.20", "dest_port": 443, "protocol": "TCP"}]
+    }
+  ]
+}

