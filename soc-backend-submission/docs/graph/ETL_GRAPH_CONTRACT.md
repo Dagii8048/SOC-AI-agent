@@ -36,10 +36,27 @@
 - P-005, P-013, P-017 are very loose. Need human input on if they should be tightened.
 
 ## Pattern Required Fields Mapping
-| Pattern | Required Nodes / Relationships | Stay Dark If Missing |
-| ------- | ------------------------------ | -------------------- |
-| P-001 | User-[:OWNS]->Process-[:SPAWNED]->Process | Missing parent tracking / process name |
-| P-002 | User-[:LOGGED_IN]->Host (multiple hosts) | Missing `logged_in_hosts` tracking |
-| P-003 | Process-[:READS]->File (SAM/ntds) | Missing `files` array with read ops |
-| P-004 | Process-[:CONNECTED_TO]->Network | Missing `network` dest IP/port info |
-| P-007 | Process-[:READS]->File, Process-[:CONNECTED]->Network | Missing either file reads or network edges |
+| Pattern | Required Nodes and Relationships | Event Field | Stays Dark if Missing |
+| ------- | -------------------------------- | ----------- | --------------------- |
+| P-001 | `User-[:OWNS]->Process-[:SPAWNED]->Process` | `user`, `process`, `process.children` (or parent) | Yes |
+| P-002 | `User-[:LOGGED_IN]->Host` (multiple hosts) | `user`, `logged_in_hosts` | Yes |
+| P-003 | `Process-[:READS]->File` | `process`, `files` (with op read) | Yes |
+| P-004 | `Process-[:CONNECTED_TO]->Network` | `process`, `network` | Yes |
+| P-005 | `User-[:OWNS]->Process-[:SPAWNED]->Process` | `user.admin`, `process`, `process.children` | Yes |
+| P-006 | `Process-[:WRITES]->File` | `process`, `files` (with op write) | Yes |
+| P-007 | `Process-[:READS]->File`, `Process-[:CONNECTED_TO]->Network` | `process`, `files`, `network` | Yes |
+| P-008 | `Process-[:WRITES]->File` | `process`, `files` (with op write) | Yes |
+| P-009 | `Host-[:SCANNED]->Host` | `scanned_hosts` | Yes |
+| P-010 | `User-[:OWNS]->Process` | `user`, `process` | Yes |
+| P-011 | `Process` | `process` | Yes |
+| P-012 | `Process-[:SPAWNED]->Process` | `process`, `process.children` (or parent) | Yes |
+| P-013 | `Process-[:WRITES]->File` | `process`, `files` (with op write) | Yes |
+| P-014 | `Process-[:WRITES]->File` | `process`, `files` (with op write) | Yes |
+| P-015 | `Process-[:SPAWNED]->Process` | `process`, `process.children` (or parent) | Yes |
+| P-016 | `Process` | `process` | Yes |
+| P-017 | `Process-[:CONNECTED_TO]->Network` | `process`, `network` | Yes |
+| P-018 | `User-[:OWNS]->Process` | `user.failed_logins`, `user.last_failed`, `process` | Yes |
+| P-019 | `Process-[:READS]->File` | `process`, `files` (with op read) | Yes |
+| P-020 | `Process-[:CONNECTED_TO]->Network` | `process`, `network` | Yes |
+| P-021 | `Process` | `process` | Yes |
+| P-022 | `Process-[:WRITES]->File` (optional File) | `process` (and optional `files` write) | Yes |

@@ -1,7 +1,40 @@
 """
 pattern_library.py
-Role 2 (Graph Engineer) module.
-Contains the library of Cypher query patterns to evaluate against the Neo4j graph.
+Role 2 (Graph Engineer, Amir) — Week 1 Deliverable
+20 hardcoded Cypher patterns mapped to MITRE ATT&CK techniques.
+Source: Blueprint v2.0, Section 5.1 / 5.2, with the Section 5.2 flag fixed.
+
+FIXES APPLIED
+-------------
+1. Alert binding: every pattern now starts from
+       MATCH (a:Alert {id: $alert_id})-[:TRIGGERED_BY]->(p:Process)
+   The original match_patterns() concatenated a raw
+       WHERE a.id = '{alert_id}'
+   onto every query string, but several patterns (old P-002, P-009, P-018)
+   had no `a` variable in scope at all, so that clause failed to bind and
+   those patterns silently returned nothing. Every pattern below is
+   rewritten to genuinely anchor on the alert's triggering process.
+
+2. Parameterization: $alert_id is passed as a Neo4j driver parameter, never
+   string-interpolated into the query. This closes the Cypher-injection risk
+   the same flag called out (raw alert data landing directly in query text).
+
+3. Schema-consistency fixes: three original patterns chained relationship
+   types that Section 4.2 never defines --
+     - old P-002 used (Host)-[:CONNECTED_TO]->(Host)
+     - old P-007 used (File)-[:CONNECTED_TO]->(Network)
+     - old P-017 used (Host)-[:CONNECTED_TO]->(Network)
+   CONNECTED_TO is defined only as Process->Network. Rewritten below to
+   route through the Process node consistent with the schema; flag for the
+   team if the original intent was actually different (e.g. a real
+   Host-to-Host or Host-to-Network edge type may need to be added to the
+   schema rather than reusing CONNECTED_TO).
+
+SCHEMA GAPS (see neo4j_schema_setup.cypher footer for the full note)
+---------------------------------------------------------------------
+Process.args, File.extension, User.failed_logins, and User.last_failed are
+used below but aren't in the Section 4.1 property tables yet -- add them to
+the ETL's node-creation step before these patterns will return real matches.
 """
 from typing import Any
 

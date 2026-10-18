@@ -7,6 +7,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pattern_library import PATTERNS
 
 def extract_regexes(cypher_str, target):
+    """
+    Extracts all regex literals from a Cypher string for a given target variable.
+    Handles matching `=~ 'regex'` pattern and applies Cypher unescaping for backslashes.
+    """
     regexes = []
     lines = cypher_str.split('\n')
     for line in lines:
@@ -15,25 +19,12 @@ def extract_regexes(cypher_str, target):
             for part in parts[1:]:
                 raw_regex = part.split("'")[0]
 
-                # Cypher unescape:
-                # cypher string r"(?i).*\\\\config\\\\SAM$" -> Java regex "(?i).*\\config\\SAM$"
-                # Python re expects literal backslashes to be escaped.
-                # In Python `re.match(r"(?i).*\\config\\SAM$", string)` works because `r"..."` handles it.
-                # So if Cypher passes `\\` to java to match a single backslash, Python needs `\\` as well!
-                # Since raw_regex is already `\\\\`, we just replace `\\\\` with `\\`.
-                # For `ntds\\.dit`, we want Python re to see `\.` (literal dot).
-                # `raw_regex` has `\\\\.dit`. Replacing `\\\\` with `\\` gives `\\.dit`.
-                # `\\.dit` in python `re` means backslash followed by any char! That's `re.error: bad escape \c` if it thinks it's a python escape.
-                # Actually `\c` in python regex is bad escape. It's coming from `\\config` -> `\config`.
-                # Ah! We are doing `replace(r'\\\\', r'\\')`, which turns `\\\\config` into `\\config`.
-                # But wait, `re.match` is throwing `bad escape \c` because `\\config` is seen by `re` as a string, not a raw string!
-                # Wait, if we pass a string `\\config` to `re.compile`, it sees two backslashes. Two backslashes mean "escape the next thing".
-                # Oh, string `\\config` has ONE backslash! Because we didn't use raw string for the replace replacement!
-
-                # Let's be explicit:
-                # raw_regex is a python string containing four backslashes.
+                # Cypher string literal unescapes \\ to \, which Java regex reads as a literal backslash.
+                # Python re needs the same, so replace('\\\\', '\\').
                 unescaped_regex = raw_regex.replace('\\\\', '\\')
+
                 regexes.append(unescaped_regex)
+
     return regexes
 
 def test_p003_regex():
