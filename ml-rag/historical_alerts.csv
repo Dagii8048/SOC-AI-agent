@@ -1,0 +1,51 @@
+alert_id,alert_type,severity,resolution,description
+H-001,Suspicious PowerShell,High,Malicious,User Bob ran encoded PowerShell that connected to external IP 5.6.7.8. Confirmed C2 beacon.
+H-002,Failed Login Attempts,Medium,Benign,User Alice forgot password and tried 5 times within 2 minutes.
+H-003,Ransomware Behavior,Critical,Malicious,Process encrypted 4500 files with .locked extension. Host isolated immediately.
+H-004,Credential Dumping,High,Malicious,Mimikatz executed and read SAM file. Attacker gained admin privileges.
+H-005,Port Scanning,Low,Benign,IT admin ran Nmap during scheduled maintenance window.
+H-006,C2 Beaconing,High,Malicious,PowerShell established HTTPS connection to unknown IP every 30 seconds.
+H-007,Suspicious PowerShell,High,Benign,IT admin ran PowerShell script for patching. Approved change ticket CHG-4421.
+H-008,Lateral Movement,Critical,Malicious,User logged into 6 different hosts within 10 minutes using stolen credentials.
+H-009,Scheduled Task Creation,Medium,Malicious,Attacker created scheduled task to maintain persistence after reboot.
+H-010,Registry Modification,Medium,Benign,Software installer modified registry keys during legitimate installation.
+H-011,Phishing Payload,High,Malicious,User opened malicious Word document that spawned PowerShell download cradle.
+H-012,Failed Login Attempts,Low,Benign,Service account had expired password and retried 8 times.
+H-013,Data Exfiltration,Critical,Malicious,Process read 2GB of customer data and uploaded to external S3 bucket.
+H-014,Credential Dumping,High,Malicious,LSASS memory dump detected. Attacker extracted domain admin hashes.
+H-015,Port Scanning,Low,Benign,Vulnerability scanner ran scheduled scan on internal subnet.
+H-016,PowerShell Download Cradle,High,Malicious,PowerShell downloaded payload from malicious URL using Invoke-WebRequest.
+H-017,Ransomware Behavior,Critical,Malicious,Shadow copies deleted followed by mass file encryption. Ransom note dropped.
+H-018,Service Creation,Medium,Benign,Legitimate software created Windows service during installation.
+H-019,Golden Ticket Attack,Critical,Malicious,Kerberos golden ticket detected using forged krbtgt hash. Full domain compromise.
+H-020,Suspicious PowerShell,High,Benign,Developer ran PowerShell script for code deployment. Approved by team lead.
+H-021,Lateral Movement,High,Malicious,Attacker used PsExec to move from workstation to file server.
+H-022,Registry Modification,Medium,Malicious,Attacker modified Run key to persist malware after reboot.
+H-023,C2 Beaconing,High,Malicious,Malware beaconed to C2 server over DNS tunneling.
+H-024,Failed Login Attempts,Medium,Benign,User account locked out after 3 failed attempts due to keyboard issue.
+H-025,Credential Dumping,High,Malicious,ProcDump used to dump LSASS memory for credential extraction.
+H-026,Scheduled Task Creation,Medium,Malicious,Malicious scheduled task created to run payload every 5 minutes.
+H-027,Port Scanning,Low,Benign,Network team ran port scan to verify firewall rules.
+H-028,Data Exfiltration,High,Malicious,Sensitive HR files compressed and uploaded to personal cloud storage.
+H-029,Phishing Payload,High,Malicious,Excel macro spawned cmd.exe which downloaded additional malware.
+H-030,Ransomware Behavior,Critical,Malicious,LockBit ransomware encrypted shared drive. All hosts isolated.
+H-031,Suspicious PowerShell,Medium,Benign,PowerShell used for Active Directory query during troubleshooting.
+H-032,Lateral Movement,High,Malicious,RDP connection from workstation to domain controller at 3 AM.
+H-033,C2 Beaconing,High,Malicious,Beacon detected every 60 seconds to known APT infrastructure.
+H-034,Credential Dumping,High,Malicious,NTDS.dit file accessed and copied by unauthorized process.
+H-035,Registry Modification,Low,Benign,Windows Update modified registry during patch installation.
+H-036,Port Scanning,Medium,Malicious,Attacker scanned internal network for open SMB ports.
+H-037,Scheduled Task Creation,Medium,Malicious,Persistence established via scheduled task pointing to temp directory.
+H-038,Data Exfiltration,High,Malicious,Database dump uploaded to file-sharing site via HTTPS.
+H-039,Phishing Payload,High,Malicious,PDF with embedded JavaScript spawned PowerShell reverse shell.
+H-040,Failed Login Attempts,Medium,Benign,User mistyped password multiple times due to Caps Lock.
+H-041,Ransomware Behavior,Critical,Malicious,REvil ransomware detected. Encryption halted by EDR.
+H-042,Suspicious PowerShell,Low,Benign,Scheduled PowerShell maintenance script ran as expected.
+H-043,Lateral Movement,Critical,Malicious,Pass-the-hash attack moved across 4 hosts before detection.
+H-044,C2 Beaconing,High,Malicious,Malware used legitimate cloud service as C2 channel.
+H-045,Credential Dumping,High,Malicious,Attacker used Sekurlsa::logonpasswords to extract credentials.
+H-046,Port Scanning,Low,Benign,Security team ran authorized penetration test.
+H-047,Data Exfiltration,High,Malicious,Intellectual property exfiltrated via DNS queries.
+H-048,Registry Modification,Medium,Malicious,Malicious registry key added to disable antivirus.
+H-049,Phishing Payload,High,Malicious,Malicious attachment executed and established persistence.
+H-050,Golden Ticket Attack,Critical,Malicious,Kerberos ticket with 10-year lifetime detected. Domain controller compromised.
