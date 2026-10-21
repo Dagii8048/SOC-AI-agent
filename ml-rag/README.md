@@ -1,8 +1,8 @@
 # ML/RAG Module — SOC AI Agent
 
 **Author:** Dagmawi
-**Status:** MVP Complete  
-**Last Updated:** October 8, 2026
+**Status:** MVP - Core Features Implemented
+**Last Updated:** October 21, 2026
 
 ---
 
@@ -161,7 +161,7 @@ Example:
 
 ```json
 {
-  "prediction": "benign",
+  "prediction": "BENIGN",
   "confidence": 0.94
 }
 ```
@@ -195,6 +195,8 @@ From this example:
 | Recall | 85.7% |
 
 For a SOC environment, **recall is particularly important** because a false negative represents a malicious alert incorrectly classified as benign.
+
+> **Note on MVP Metrics:** These metrics are based on a small synthetic test set (10 rows out of a 50-row dataset) used for MVP demonstration. In a production environment, the model would be trained on thousands of real SOC incidents to achieve meaningful statistical accuracy.
 
 ---
 
