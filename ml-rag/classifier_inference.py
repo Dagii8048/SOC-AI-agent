@@ -65,32 +65,20 @@ class FPClassifier:
     # -----------------------------------------------------------------------
     # FEATURE EXTRACTION (must match train_classifier.py exactly)
     # -----------------------------------------------------------------------
-    def _extract_features(self, alert_type: str, severity: str, description: str) -> np.ndarray:
-        """
-        Convert raw alert data into the same 4-feature vector used in training.
-
-        IMPORTANT: The order of features MUST match the training pipeline.
-        """
-        # Feature 1: Severity (ordinal)
+        def _extract_features(self, alert_type: str, severity: str, description: str) -> np.ndarray:
         severity_encoded = SEVERITY_MAP.get(severity, 0)
-
-        # Feature 2: Alert type (label encoding)
-        # Handle unseen alert types gracefully — if we don't recognize it,
-        # we use a special "unknown" bucket by reusing an existing label.
+        
+        # Safely handle unknown alert types
         if alert_type in self.encoder.classes_:
             alert_type_encoded = self.encoder.transform([alert_type])[0]
+            self.is_known_type = True
         else:
-            # Unknown type: use the last class as a fallback.
-            # This is a defensive measure; in production, retrain with the new type.
-            alert_type_encoded = len(self.encoder.classes_) - 1
+            alert_type_encoded = 0 # Fallback, but we will flag it
+            self.is_known_type = False
 
-        # Feature 3: Description length
         desc_length = len(description)
-
-        # Feature 4: High severity flag
         is_high_severity = 1 if severity in ["High", "Critical"] else 0
 
-        # Return as a 2D array (XGBoost expects shape (n_samples, n_features))
         return np.array([[severity_encoded, alert_type_encoded, desc_length, is_high_severity]])
 
     # -----------------------------------------------------------------------

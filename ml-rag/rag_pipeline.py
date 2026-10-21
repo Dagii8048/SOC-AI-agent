@@ -78,7 +78,7 @@ def ingest_incidents(csv_path: str = CSV_PATH):
 
         # Create a Qdrant point (ID + vector + metadata payload)
         point = PointStruct(
-            id=str(uuid.uuid4()),
+            id=str(uuid.uuid5(uuid.NAMESPACE_DNS, row["alert_id"])),
             vector=embedding,
             payload={
                 "alert_id": row["alert_id"],
