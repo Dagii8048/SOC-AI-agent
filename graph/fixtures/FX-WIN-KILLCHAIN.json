@@ -1,0 +1,22 @@
+{
+  "events": [
+    {
+      "alert": {"id": "FX-WIN-100", "level": 8, "name": "Suspicious PowerShell", "timestamp": 1790928930000, "mitre": ["T1059.001"]},
+      "host": {"hostname": "WIN-SRV-01", "ip": "10.0.0.5", "os": "Windows"},
+      "user": {"username": "bob", "admin": true},
+      "process": {
+        "pid": 2048, "start_time": 1790928929000, "name": "outlook.exe",
+        "children": [
+          {
+            "pid": 4012,
+            "start_time": 1790928930000,
+            "name": "powershell.exe",
+            "args": "powershell.exe -ExecutionPolicy Bypass -File C:\\temp\\loader.ps1"
+          }
+        ]
+      },
+      "files": [{"path": "C:\\Windows\\System32\\config\\SAM", "op": "read"}],
+      "network": [{"dest_ip": "5.6.7.8", "dest_port": 443, "protocol": "TCP"}]
+    }
+  ]
+}
