@@ -6,6 +6,7 @@ venv/
 env/
 *.egg-info/
 .pytest_cache/
+*.cfg
 
 # Node / React
 node_modules/
@@ -14,7 +15,7 @@ build/
 .vite/
 *.log
 
-# Environment & Secrets (NEVER COMMIT THESE)
+# local secrets: URL and API key live in environment variables, never in the repo
 .env
 .env.local
 *.env
