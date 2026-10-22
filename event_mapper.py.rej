@@ -1,0 +1,13 @@
+--- event_mapper.py
++++ event_mapper.py
+@@ -9,7 +9,10 @@
+ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], agent_name: str, cmd: str, alert_timestamp: int) -> List[Dict[str, Any]]:
+     candidates = []
+     for rec in osquery_records:
+-        host_ident = rec.get("hostIdentifier")
++        if not isinstance(rec, dict):
++            continue
++
++        host_ident = rec.get("hostIdentifier")
+         if not host_ident or host_ident != agent_name:
+             continue
