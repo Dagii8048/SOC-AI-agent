@@ -10,15 +10,21 @@ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, co
     cmd_stripped = command.strip()
 
     for rec in osquery_records:
+        if not isinstance(rec, dict):
+            continue
+
         if rec.get("action") not in ("added", "snapshot"):
             continue
 
         if rec.get("hostIdentifier") != host:
             continue
 
-        cols = rec.get("columns", {})
+        cols = rec.get("columns")
+        if not isinstance(cols, dict):
+            cols = {}
+
         osq_cmd = cols.get("cmdline") or cols.get("command")
-        if not osq_cmd or osq_cmd.strip() != cmd_stripped:
+        if not isinstance(osq_cmd, str) or osq_cmd.strip() != cmd_stripped:
             continue
 
         unix_time = rec.get("unixTime")
@@ -38,9 +44,13 @@ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, co
         except (ValueError, TypeError):
             continue
 
+        name_val = cols.get("name")
+        if not name_val and isinstance(cols.get("path"), str):
+            name_val = cols.get("path").split("/")[-1]
+
         candidates.append({
             "pid": pid,
-            "name": cols.get("name") or (cols.get("path", "").split("/")[-1] if cols.get("path") else None),
+            "name": name_val,
             "args": osq_cmd.strip(),
             "osq_time": osq_time
         })
@@ -49,16 +59,36 @@ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, co
 
 def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) -> Tuple[str, Optional[Dict[str, Any]], Optional[str]]:
     """Returns (status, mapped_event, reason). status is one of: 'mapped', 'noise', 'invalid'."""
-    rule = raw.get("rule", {})
+    rule = raw.get("rule")
+    if not isinstance(rule, dict):
+        return "invalid", None, "Missing rule"
+
     level = rule.get("level")
     if level is None:
         level = 0
+    elif isinstance(level, bool):
+        return "invalid", None, "Invalid level"
+    elif isinstance(level, int):
+        pass
+    elif isinstance(level, float):
+        if level.is_integer():
+            level = int(level)
+        else:
+            return "invalid", None, "Invalid level"
     elif isinstance(level, str):
         try:
-            level = int(level)
+            f_val = float(level)
+            if f_val.is_integer():
+                level = int(f_val)
+            else:
+                return "invalid", None, "Invalid level"
         except ValueError:
-            level = 0
+            return "invalid", None, "Invalid level"
+    else:
+        return "invalid", None, "Invalid level"
 
+    if level < 0 or level > 15:
+        return "invalid", None, "Level out of range 0-15"
     if level < 5:
         return "noise", None, None
 
@@ -68,7 +98,10 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
     if timestamp is None or timestamp < 100000000000:
         return "invalid", None, "Missing or invalid timestamp"
 
-    agent = raw.get("agent", {})
+    agent = raw.get("agent")
+    if not isinstance(agent, dict):
+        agent = {}
+
     agent_id = agent.get("id")
     rule_id = rule.get("id")
 
@@ -90,15 +123,21 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
     }
 
     name = rule.get("description")
-    if name:
+    if isinstance(name, str):
         alert_info["name"] = name
 
-    mitre_raw = rule.get("mitre", {}).get("id")
+    mitre_obj = rule.get("mitre")
+    if not isinstance(mitre_obj, dict):
+        mitre_obj = {}
+
+    mitre_raw = mitre_obj.get("id")
     if mitre_raw:
         if isinstance(mitre_raw, str):
             alert_info["mitre"] = [mitre_raw]
-        elif isinstance(mitre_raw, list) and mitre_raw:
-            alert_info["mitre"] = mitre_raw
+        elif isinstance(mitre_raw, list):
+            mitre_list = [str(x) for x in mitre_raw if x is not None]
+            if mitre_list:
+                alert_info["mitre"] = mitre_list
 
     event: Dict[str, Any] = {"alert": alert_info}
 
@@ -111,10 +150,22 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
         event["host"] = host_info
 
     # Process matching
-    cmd = raw.get("data", {}).get("win", {}).get("eventdata", {}).get("commandLine") or raw.get("data", {}).get("command")
+    data = raw.get("data")
+    if not isinstance(data, dict):
+        data = {}
+
+    win = data.get("win")
+    if not isinstance(win, dict):
+        win = {}
+
+    eventdata = win.get("eventdata")
+    if not isinstance(eventdata, dict):
+        eventdata = {}
+
+    cmd = eventdata.get("commandLine") or data.get("command")
     attached_info = None
 
-    if cmd and agent_name:
+    if isinstance(cmd, str) and agent_name:
         candidates = _get_osquery_candidates(osquery_records, agent_name, cmd, timestamp)
 
         distinct_pids = list(set(c["pid"] for c in candidates))
@@ -149,6 +200,10 @@ def map_events(wazuh_records: List[Dict[str, Any]], osquery_records: List[Dict[s
 
     for i, raw in enumerate(wazuh_records):
         try:
+            if not isinstance(raw, dict):
+                invalid.append({"index": i, "reason": "Record is not an object"})
+                continue
+
             status, event, attached_info = map_wazuh_alert(raw, osquery_records)
             if status == "invalid":
                 invalid.append({"index": i, "reason": attached_info}) # attached_info is reason for invalid
