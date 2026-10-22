@@ -56,3 +56,4 @@ wazuh/data/
 *.tar.gz
 *.rar
 *.7z
+rejected_events.jsonl
