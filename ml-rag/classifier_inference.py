@@ -65,10 +65,15 @@ class FPClassifier:
     # -----------------------------------------------------------------------
     # FEATURE EXTRACTION (must match train_classifier.py exactly)
     # -----------------------------------------------------------------------
-        def _extract_features(self, alert_type: str, severity: str, description: str) -> np.ndarray:
+    def _extract_features(self, alert_type: str, severity: str, description: str) -> np.ndarray:
+        """
+        Convert raw alert data into the same 4-feature vector used in training.
+        """
+        # Feature 1: Severity (ordinal)
         severity_encoded = SEVERITY_MAP.get(severity, 0)
-        
-        # Safely handle unknown alert types
+
+        # Feature 2: Alert type (label encoding)
+        # FIX (Talegeta's review): Handle unseen types safely
         if alert_type in self.encoder.classes_:
             alert_type_encoded = self.encoder.transform([alert_type])[0]
             self.is_known_type = True
@@ -76,9 +81,13 @@ class FPClassifier:
             alert_type_encoded = 0 # Fallback, but we will flag it
             self.is_known_type = False
 
+        # Feature 3: Description length
         desc_length = len(description)
+
+        # Feature 4: High severity flag
         is_high_severity = 1 if severity in ["High", "Critical"] else 0
 
+        # Return as a 2D array
         return np.array([[severity_encoded, alert_type_encoded, desc_length, is_high_severity]])
 
     # -----------------------------------------------------------------------
@@ -113,8 +122,8 @@ class FPClassifier:
 
         prediction = "MALICIOUS" if prediction_idx == 1 else "BENIGN"
 
-        # Auto-close logic: only benign AND high confidence
-        auto_close = (prediction == "BENIGN") and (confidence >= AUTO_CLOSE_THRESHOLD)
+        # Auto-close logic: only benign AND high confidence AND known type
+        auto_close = (prediction == "BENIGN") and (confidence >= AUTO_CLOSE_THRESHOLD) and self.is_known_type
 
         return {
             "prediction": prediction,
