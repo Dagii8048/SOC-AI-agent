@@ -31,7 +31,7 @@ def _int_env(name, default):
         return default
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_TIMEOUT = _int_env("OLLAMA_TIMEOUT_SECONDS", 120)
 
 # ---------------------------------------------------------------------------
