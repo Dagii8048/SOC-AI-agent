@@ -12,29 +12,91 @@ import event_mapper
 
 logger = logging.getLogger(__name__)
 
+def truncate_text(s, limit):
+    if not isinstance(s, str):
+        return s
+    L = len(s)
+    if L <= limit:
+        return s
+
+    # We want to replace N characters in the middle with a marker: " ...[truncated N chars]... "
+    # N is the number of removed characters.
+    # So limit >= len(marker) + head_len + tail_len
+    # Actually, L = head_len + N + tail_len
+    # Result length = head_len + len(marker) + tail_len <= limit
+    # This means len(marker) + N + tail_len + head_len - len(marker) = L
+    # We need to find the right N. Since the marker length depends on the number of digits in N,
+    # we can compute it iteratively. Usually it takes 1 or 2 iterations.
+
+    N = L - limit + 30 # initial guess for marker length around 30 chars
+    while True:
+        marker = f" ...[truncated {N} chars]... "
+        marker_len = len(marker)
+        if marker_len >= limit:
+            # If limit is so small it can't even fit the marker, just hard truncate
+            return s[:limit]
+
+        head_len = (limit - marker_len) // 2
+        tail_len = limit - marker_len - head_len
+
+        actual_N = L - head_len - tail_len
+        if actual_N == N:
+            break
+        N = actual_N
+
+    return s[:head_len] + marker + s[L - tail_len:]
+
+def _apply_trunc(d, key, limit, is_ip=False):
+    if not isinstance(d, dict):
+        return
+    if key in d:
+        val = d[key]
+        if is_ip and val is not None and not isinstance(val, str):
+            val = str(val)
+        if isinstance(val, str):
+            d[key] = truncate_text(val, limit)
+
 def truncate_event(event):
-    """
-    truncate_event(event) returns a COPY (input must not change) with:
-    process.args cut to 4096 characters; alert.name, host.hostname and process.name cut to 256;
-    host.ip converted to str if present and not a str. Missing keys stay missing.
-    """
     e = copy.deepcopy(event)
 
-    if "process" in e:
-        if "args" in e["process"] and isinstance(e["process"]["args"], str):
-            e["process"]["args"] = e["process"]["args"][:4096]
-        if "name" in e["process"] and isinstance(e["process"]["name"], str):
-            e["process"]["name"] = e["process"]["name"][:256]
+    if "process" in e and isinstance(e["process"], dict):
+        p = e["process"]
+        _apply_trunc(p, "args", 4096)
+        _apply_trunc(p, "path", 1024)
+        _apply_trunc(p, "name", 256)
+        _apply_trunc(p, "hash", 256)
 
-    if "alert" in e:
-        if "name" in e["alert"] and isinstance(e["alert"]["name"], str):
-            e["alert"]["name"] = e["alert"]["name"][:256]
+        if "parent" in p and isinstance(p["parent"], dict):
+            _apply_trunc(p["parent"], "args", 4096)
+            _apply_trunc(p["parent"], "path", 1024)
+            _apply_trunc(p["parent"], "name", 256)
+            _apply_trunc(p["parent"], "hash", 256)
 
-    if "host" in e:
-        if "hostname" in e["host"] and isinstance(e["host"]["hostname"], str):
-            e["host"]["hostname"] = e["host"]["hostname"][:256]
-        if "ip" in e["host"] and not isinstance(e["host"]["ip"], str):
-            e["host"]["ip"] = str(e["host"]["ip"])
+    if "alert" in e and isinstance(e["alert"], dict):
+        _apply_trunc(e["alert"], "name", 256)
+
+    if "host" in e and isinstance(e["host"], dict):
+        _apply_trunc(e["host"], "hostname", 256)
+        _apply_trunc(e["host"], "os", 256)
+        _apply_trunc(e["host"], "ip", 256, is_ip=True)
+
+    if "user" in e and isinstance(e["user"], dict):
+        _apply_trunc(e["user"], "username", 256)
+        _apply_trunc(e["user"], "domain", 256)
+
+    if "children" in e and isinstance(e["children"], list):
+        for child in e["children"]:
+            _apply_trunc(child, "args", 4096)
+            _apply_trunc(child, "name", 256)
+
+    if "files" in e and isinstance(e["files"], list):
+        for f in e["files"]:
+            _apply_trunc(f, "path", 1024)
+
+    if "network" in e and isinstance(e["network"], list):
+        for n in e["network"]:
+            _apply_trunc(n, "dest_ip", 256, is_ip=True)
+            _apply_trunc(n, "src_ip", 256, is_ip=True)
 
     return e
 
@@ -99,14 +161,14 @@ def send_batch(url, key, batch, timeout=30):
         return (0, None)
 
 def parse_response(status_code, body):
-    """
-    ASSUMPTION - confirm with Amir
-    """
     if status_code == 200 and body is not None:
-        accepted = body.get("accepted", [])
-        rejected = body.get("rejected", [])
-        return (accepted, rejected)
-    return ([], [])
+        accepted = body.get("accepted")
+        rejected = body.get("rejected")
+        if isinstance(accepted, int) and isinstance(rejected, list):
+            return (accepted, rejected)
+        else:
+            return (None, None)
+    return (0, [])
 
 def dispatch(events, url, key, sleep=time.sleep, log_path=None):
     """
@@ -142,40 +204,14 @@ def dispatch(events, url, key, sleep=time.sleep, log_path=None):
                 logger.error("Unauthorized (401): check INGEST_API_KEY")
                 return summary
 
-            if status == 413:
-                # split in half and process
-                half = len(batch) // 2
-                if half > 0:
-                    batches.insert(i + 1, batch[half:])
-                    batch = batch[:half]
-                    batches[i] = batch
-                    # try again this half without incrementing retries, it's a new sub-batch
-                    continue
-                else:
-                    # single event too large
-                    for event in batch:
-                        try:
-                            with open(log_path, "a") as f:
-                                f.write(json.dumps({"event": event, "reason": "413"}) + "\n")
-                        except Exception:
-                            pass
-                    summary["rejected"] += len(batch)
-                    summary["sent"] += len(batch)
-                    break
-
-            if status == 422:
-                # whole batch rejected
-                for event in batch:
-                    try:
-                        with open(log_path, "a") as f:
-                            f.write(json.dumps({"event": event, "reason": "422"}) + "\n")
-                    except Exception:
-                        pass
-                summary["rejected"] += len(batch)
+            if status == 413 or status == 422:
+                # no retry and NO splitting; count the batch as failed and log only the status code
+                summary["failed"] += len(batch)
                 summary["sent"] += len(batch)
+                logger.error(f"Status {status}")
                 break # move to next batch
 
-            if status == 503 or status == 0: # 0 represents network error
+            if status >= 500 or status == 0: # 5xx or network error
                 if retries < 3:
                     sleep(backoffs[retries])
                     retries += 1
@@ -190,42 +226,29 @@ def dispatch(events, url, key, sleep=time.sleep, log_path=None):
             if status == 200:
                 summary["sent"] += len(batch)
                 accepted, rejected = parse_response(status, body)
-                summary["accepted"] += len(accepted)
+
+                if accepted is None and rejected is None:
+                    # treat the batch as failed
+                    summary["failed"] += len(batch)
+                    logger.error("Status 200 but invalid body format")
+                    break
+
+                summary["accepted"] += accepted
+                summary["rejected"] += len(rejected)
 
                 if rejected:
                     # Rejected events from the server reply
-                    # ASSUMPTION - confirm retry rule with Amir
-                    resend_batch = []
-                    rejected_reasons = {}
                     for r in rejected:
                         idx = r.get("index")
-                        reason = r.get("reason")
-                        if idx is not None and 0 <= idx < len(batch):
+                        reason = r.get("reason", "unknown")
+                        if isinstance(idx, int) and 0 <= idx < len(batch):
                             logger.info(f"Rejected index {idx}: {reason}")
-                            resend_batch.append(batch[idx])
-                            rejected_reasons[len(resend_batch) - 1] = reason
-
-                    if resend_batch:
-                        # resend ONLY those rejected events once
-                        r_status, r_body = send_batch(url, key, resend_batch)
-                        if r_status == 200:
-                            r_acc, r_rej = parse_response(r_status, r_body)
-                            summary["accepted"] += len(r_acc)
-                            summary["rejected"] += len(r_rej)
-                            for rr in r_rej:
-                                r_idx = rr.get("index")
-                                if r_idx is not None and 0 <= r_idx < len(resend_batch):
-                                    ev = resend_batch[r_idx]
-                                    rs = rr.get("reason", rejected_reasons.get(r_idx, "unknown"))
-                                    with open(log_path, "a") as f:
-                                        f.write(json.dumps({"event": ev, "reason": rs}) + "\n")
-                        else:
-                            # if resend fails, all considered rejected
-                            summary["rejected"] += len(resend_batch)
-                            for r_idx, ev in enumerate(resend_batch):
-                                rs = rejected_reasons.get(r_idx, "unknown")
+                            ev = batch[idx]
+                            try:
                                 with open(log_path, "a") as f:
-                                    f.write(json.dumps({"event": ev, "reason": rs}) + "\n")
+                                    f.write(json.dumps({"event": ev, "reason": reason}) + "\n")
+                            except Exception:
+                                pass
                 break # move to next batch
 
             # Any other status

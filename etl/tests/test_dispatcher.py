@@ -9,6 +9,7 @@ from unittest.mock import patch, MagicMock
 
 from dispatcher import (
     truncate_event,
+    truncate_text,
     split_batches,
     send_batch,
     parse_response,
@@ -40,7 +41,7 @@ class FakeServerHandler(BaseHTTPRequestHandler):
         req_data = json.loads(body)
         events = req_data.get("events", [])
 
-        response_behavior = self.server.response_behavior.pop(0) if self.server.response_behavior else {"status": 200, "body": {}}
+        response_behavior = self.server.response_behavior.pop(0) if self.server.response_behavior else {"status": 200, "body": {"accepted": 0, "rejected": []}}
 
         self.send_response(response_behavior["status"])
         self.send_header('Content-Type', 'application/json')
@@ -83,7 +84,7 @@ class TestDispatcherBase(unittest.TestCase):
     def test_success(self):
         events = [{"id": 1}, {"id": 2}]
         self.server.response_behavior = [
-            {"status": 200, "body": {"accepted": [0, 1], "rejected": []}}
+            {"status": 200, "body": {"accepted": 2, "rejected": []}}
         ]
 
         summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=self.log_path)
@@ -94,15 +95,13 @@ class TestDispatcherBase(unittest.TestCase):
     def test_partial_rejection(self):
         events = [{"id": 1}, {"id": 2}, {"id": 3}]
         self.server.response_behavior = [
-            # First pass: event at index 1 is rejected
-            {"status": 200, "body": {"accepted": [0, 2], "rejected": [{"index": 1, "reason": "bad data"}]}},
-            # Second pass (retry for rejected event): still rejected
-            {"status": 200, "body": {"accepted": [], "rejected": [{"index": 0, "reason": "still bad"}]}}
+            {"status": 200, "body": {"accepted": 2, "rejected": [{"index": 1, "reason": "bad data"}]}}
         ]
 
         summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=self.log_path)
         self.assertEqual(summary["accepted"], 2)
         self.assertEqual(summary["rejected"], 1)
+        self.assertEqual(len(self.server.requests), 1) # only reaches server ONCE
 
         # Check log
         with open(self.log_path, 'r') as f:
@@ -110,7 +109,7 @@ class TestDispatcherBase(unittest.TestCase):
             self.assertEqual(len(lines), 1)
             logged = json.loads(lines[0])
             self.assertEqual(logged["event"], {"id": 2})
-            self.assertEqual(logged["reason"], "still bad")
+            self.assertEqual(logged["reason"], "bad data")
 
     def test_401_stops_no_retry(self):
         events = [{"id": 1}]
@@ -131,7 +130,7 @@ class TestDispatcherBase(unittest.TestCase):
         self.server.response_behavior = [
             {"status": 503, "body": None},
             {"status": 503, "body": None},
-            {"status": 200, "body": {"accepted": [0], "rejected": []}}
+            {"status": 200, "body": {"accepted": 1, "rejected": []}}
         ]
 
         sleep_mock = MagicMock()
@@ -143,33 +142,36 @@ class TestDispatcherBase(unittest.TestCase):
         sleep_mock.assert_any_call(1)
         sleep_mock.assert_any_call(2)
 
-    def test_413_splits_batch(self):
+    def test_500_retried(self):
+        events = [{"id": 1}]
+        self.server.response_behavior = [
+            {"status": 500, "body": None},
+            {"status": 200, "body": {"accepted": 1, "rejected": []}}
+        ]
+
+        summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=self.log_path)
+        self.assertEqual(summary["accepted"], 1)
+        self.assertEqual(len(self.server.requests), 2)
+
+    def test_413_fails(self):
         events = [{"id": 1}, {"id": 2}]
         self.server.response_behavior = [
-            {"status": 413, "body": None},
-            {"status": 200, "body": {"accepted": [0], "rejected": []}}, # First half
-            {"status": 200, "body": {"accepted": [0], "rejected": []}}  # Second half
+            {"status": 413, "body": None}
         ]
 
         summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=self.log_path)
 
-        self.assertEqual(summary["accepted"], 2)
-        self.assertEqual(len(self.server.requests), 3)
+        self.assertEqual(summary["failed"], 2) # batch of 2 failed
+        self.assertEqual(len(self.server.requests), 1) # no retry, no split
 
-    def test_422_goes_to_log_no_retry(self):
-        events = [{"id": 1}]
+    def test_422_fails(self):
+        events = [{"id": 1}, {"id": 2}]
         self.server.response_behavior = [{"status": 422, "body": None}]
 
         summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=self.log_path)
 
-        self.assertEqual(summary["rejected"], 1)
-        self.assertEqual(len(self.server.requests), 1)
-
-        with open(self.log_path, 'r') as f:
-            lines = f.readlines()
-            self.assertEqual(len(lines), 1)
-            logged = json.loads(lines[0])
-            self.assertEqual(logged["reason"], "422")
+        self.assertEqual(summary["failed"], 2)
+        self.assertEqual(len(self.server.requests), 1) # no retry, no split
 
     def test_1200_events_split(self):
         events = [{"id": i} for i in range(1200)]
@@ -200,8 +202,13 @@ class TestDispatcherBase(unittest.TestCase):
     def test_truncate_event(self):
         event = {
             "process": {
-                "args": "a" * 5000,
-                "name": "n" * 300
+                "args": "a" * 10000,
+                "name": "n" * 300,
+                "path": "p" * 2000,
+                "parent": {
+                    "args": "a" * 5000,
+                    "path": "p" * 2000
+                }
             },
             "alert": {
                 "name": "a" * 300
@@ -210,19 +217,32 @@ class TestDispatcherBase(unittest.TestCase):
                 "hostname": "h" * 300,
                 "ip": 12345
             },
+            "files": [
+                {"path": "f" * 1500}
+            ],
             "other": "unchanged"
         }
 
         truncated = truncate_event(event)
 
         # Original shouldn't change
-        self.assertEqual(len(event["process"]["args"]), 5000)
+        self.assertEqual(len(event["process"]["args"]), 10000)
 
-        # Truncated limits
-        self.assertEqual(len(truncated["process"]["args"]), 4096)
-        self.assertEqual(len(truncated["process"]["name"]), 256)
-        self.assertEqual(len(truncated["alert"]["name"]), 256)
-        self.assertEqual(len(truncated["host"]["hostname"]), 256)
+        # Truncated limits check
+        self.assertLessEqual(len(truncated["process"]["args"]), 4096)
+        self.assertLessEqual(len(truncated["process"]["path"]), 1024)
+        self.assertLessEqual(len(truncated["process"]["parent"]["args"]), 4096)
+        self.assertLessEqual(len(truncated["process"]["parent"]["path"]), 1024)
+        self.assertLessEqual(len(truncated["process"]["name"]), 256)
+        self.assertLessEqual(len(truncated["alert"]["name"]), 256)
+        self.assertLessEqual(len(truncated["host"]["hostname"]), 256)
+        self.assertLessEqual(len(truncated["files"][0]["path"]), 1024)
+
+        # Specific marker checks for a 10000-char string
+        args_truncated = truncated["process"]["args"]
+        self.assertTrue(args_truncated.startswith("a" * 100))
+        self.assertTrue(args_truncated.endswith("a" * 100))
+        self.assertIn("...[truncated", args_truncated)
 
         # Type conversion
         self.assertEqual(truncated["host"]["ip"], "12345")
@@ -237,6 +257,19 @@ class TestDispatcherBase(unittest.TestCase):
         }
         truncated = truncate_event(event)
         self.assertEqual(event, truncated)
+
+    def test_truncate_text_logic(self):
+        # a short string is unchanged
+        self.assertEqual(truncate_text("short", 100), "short")
+
+        # long string truncation
+        # 10000 char -> 4096 limit
+        s = "A" * 100 + "B" * 9800 + "C" * 100
+        truncated = truncate_text(s, 4096)
+        self.assertLessEqual(len(truncated), 4096)
+        self.assertTrue(truncated.startswith("A" * 100))
+        self.assertTrue(truncated.endswith("C" * 100))
+        self.assertIn("...[truncated", truncated)
 
     @patch('sys.exit')
     @patch('os.environ.get')
