@@ -72,6 +72,12 @@ def truncate_event(event):
             _apply_trunc(p["parent"], "name", 256)
             _apply_trunc(p["parent"], "hash", 256)
 
+        if "children" in p and isinstance(p["children"], list):
+            for child in p["children"]:
+                if isinstance(child, dict):
+                    _apply_trunc(child, "args", 4096)
+                    _apply_trunc(child, "name", 256)
+
     if "alert" in e and isinstance(e["alert"], dict):
         _apply_trunc(e["alert"], "name", 256)
 
@@ -83,11 +89,6 @@ def truncate_event(event):
     if "user" in e and isinstance(e["user"], dict):
         _apply_trunc(e["user"], "username", 256)
         _apply_trunc(e["user"], "domain", 256)
-
-    if "children" in e and isinstance(e["children"], list):
-        for child in e["children"]:
-            _apply_trunc(child, "args", 4096)
-            _apply_trunc(child, "name", 256)
 
     if "files" in e and isinstance(e["files"], list):
         for f in e["files"]:
@@ -248,7 +249,7 @@ def dispatch(events, url, key, sleep=time.sleep, log_path=None):
                                 with open(log_path, "a") as f:
                                     f.write(json.dumps({"event": ev, "reason": reason}) + "\n")
                             except Exception:
-                                pass
+                                logger.error("Could not write rejected log")
                 break # move to next batch
 
             # Any other status
@@ -262,6 +263,7 @@ def dispatch(events, url, key, sleep=time.sleep, log_path=None):
     return summary
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Dispatch events to ingest API.")
     parser.add_argument("--wazuh", required=True, help="Path to wazuh JSON file.")
     parser.add_argument("--osquery", required=True, help="Path to osquery JSON file.")
@@ -276,7 +278,7 @@ def main():
     mapped = event_mapper.map_events(wazuh_data, osquery_data)
     events = mapped.get("events", [])
     noise_dropped = mapped.get("noise_dropped", 0)
-    invalid_count = mapped.get("invalid_count", 0)
+    invalid_count = len(mapped.get("invalid", []))
 
     if args.dry_run:
         # We need to simulate truncation and splitting

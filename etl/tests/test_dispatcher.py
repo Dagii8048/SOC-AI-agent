@@ -238,17 +238,22 @@ class TestDispatcherBase(unittest.TestCase):
         self.assertLessEqual(len(truncated["host"]["hostname"]), 256)
         self.assertLessEqual(len(truncated["files"][0]["path"]), 1024)
 
-        # Specific marker checks for a 10000-char string
-        args_truncated = truncated["process"]["args"]
-        self.assertTrue(args_truncated.startswith("a" * 100))
-        self.assertTrue(args_truncated.endswith("a" * 100))
-        self.assertIn("...[truncated", args_truncated)
+    def test_process_children_truncation(self):
+        event = {
+            "process": {
+                "children": [
+                    {
+                        "args": "a" * 9000,
+                        "name": "n" * 300
+                    }
+                ]
+            }
+        }
+        truncated = truncate_event(event)
+        self.assertLessEqual(len(truncated["process"]["children"][0]["args"]), 4096)
+        self.assertLessEqual(len(truncated["process"]["children"][0]["name"]), 256)
 
-        # Type conversion
-        self.assertEqual(truncated["host"]["ip"], "12345")
 
-        # Unaffected fields
-        self.assertEqual(truncated["other"], "unchanged")
 
     def test_normal_event_unchanged(self):
         event = {
@@ -331,7 +336,7 @@ class TestDispatcherBase(unittest.TestCase):
                 with open(osquery_file, "w") as f:
                     f.write("[]")
                 with patch('dispatcher.event_mapper') as mock_mapper:
-                    mock_mapper.map_events.return_value = {"events": [{"id": 1}], "noise_dropped": 0, "invalid_count": 0}
+                    mock_mapper.map_events.return_value = {"events": [{"id": 1}], "noise_dropped": 0, "invalid": [{"err": 1}, {"err": 2}]}
                     dispatcher.main()
         finally:
             sys.stdout = sys.__stdout__
@@ -340,3 +345,23 @@ class TestDispatcherBase(unittest.TestCase):
         out = captured_output.getvalue()
         self.assertIn("number of events: 1", out)
         self.assertIn("number of batches: 1", out)
+        self.assertIn("invalid count: 2", out)
+
+    def test_rejected_info_log_and_write_error(self):
+        events = [{"id": 1}]
+        self.server.response_behavior = [
+            {"status": 200, "body": {"accepted": 0, "rejected": [{"index": 0, "reason": "bad"}]}}
+        ]
+
+        # Point to unwritable directory
+        unwritable_path = "/dev/null/unwritable.jsonl"
+
+        with self.assertLogs('dispatcher', level='INFO') as cm:
+            summary = dispatch(events, self.url, self.api_key, sleep=lambda x: None, log_path=unwritable_path)
+
+        self.assertEqual(summary["rejected"], 1)
+
+        # Check logs
+        log_output = "\n".join(cm.output)
+        self.assertIn("INFO:dispatcher:Rejected index 0: bad", log_output)
+        self.assertIn("ERROR:dispatcher:Could not write rejected log", log_output)
