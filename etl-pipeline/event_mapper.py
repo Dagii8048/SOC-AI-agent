@@ -5,9 +5,22 @@ from quick_etl import to_epoch_ms
 
 logger = logging.getLogger("event_mapper")
 
+import re
+
+def normalize_host(name: Any) -> str:
+    if not isinstance(name, str):
+        return ""
+    name = name.strip().lower()
+    if re.match(r'^\d+\.\d+\.\d+\.\d+$', name):
+        return name
+    return name.split(".", 1)[0]
+
 def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, command: str, alert_time: int) -> List[Dict[str, Any]]:
     candidates = []
     cmd_stripped = command.strip()
+    norm_host = normalize_host(host)
+    if not norm_host:
+        return candidates
 
     for rec in osquery_records:
         if not isinstance(rec, dict):
@@ -16,7 +29,7 @@ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, co
         if rec.get("action") not in ("added", "snapshot"):
             continue
 
-        if rec.get("hostIdentifier") != host:
+        if normalize_host(rec.get("hostIdentifier")) != norm_host:
             continue
 
         cols = rec.get("columns")
@@ -168,27 +181,30 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
     if isinstance(cmd, str) and agent_name:
         candidates = _get_osquery_candidates(osquery_records, agent_name, cmd, timestamp)
 
-        distinct_pids = list(set(c["pid"] for c in candidates))
+        if not candidates:
+            logger.info("No osquery match for alert. alert_id=%s, host=%s", alert_id, agent_name)
+        else:
+            distinct_pids = list(set(c["pid"] for c in candidates))
 
-        if len(distinct_pids) == 1:
-            pid = distinct_pids[0]
-            # Get closest candidate
-            closest = min([c for c in candidates if c["pid"] == pid], key=lambda c: abs(c["osq_time"] - timestamp))
+            if len(distinct_pids) == 1:
+                pid = distinct_pids[0]
+                # Get closest candidate
+                closest = min([c for c in candidates if c["pid"] == pid], key=lambda c: abs(c["osq_time"] - timestamp))
 
-            process_info = {"pid": pid, "args": closest["args"]}
-            if closest["name"]:
-                process_info["name"] = closest["name"]
+                process_info = {"pid": pid, "args": closest["args"]}
+                if closest["name"]:
+                    process_info["name"] = closest["name"]
 
-            event["process"] = process_info
+                event["process"] = process_info
 
-            logger.info("Attached process to alert. alert_id=%s, host=%s, pid=%s, command=%s", alert_id, agent_name, pid, closest["args"])
+                logger.info("Attached process to alert. alert_id=%s, host=%s, pid=%s, command=%s", alert_id, agent_name, pid, closest["args"])
 
-            attached_info = {
-                "alert_id": alert_id,
-                "host": agent_name,
-                "pid": pid,
-                "command": closest["args"]
-            }
+                attached_info = {
+                    "alert_id": alert_id,
+                    "host": agent_name,
+                    "pid": pid,
+                    "command": closest["args"]
+                }
 
     return "mapped", event, attached_info
 

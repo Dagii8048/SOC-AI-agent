@@ -1,0 +1,322 @@
+/* =========================================================
+   SOC ATTACK GRAPH CONTAINER
+========================================================= */
+
+.attack-graph-container {
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+
+/* =========================================================
+   CYTOSCAPE ATTACK GRAPH
+========================================================= */
+
+.cytoscape-graph {
+  width: 100%;
+  height: 500px;
+  background: #020617;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   SELECTED NODE / INVESTIGATION DETAILS
+========================================================= */
+
+.selected-node-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+.selected-node-panel h3 {
+  margin-top: 0;
+  color: #38bdf8;
+}
+
+.selected-node-panel p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   INVESTIGATION RECOMMENDATION
+========================================================= */
+
+.investigation-recommendation {
+  margin-top: 15px;
+  padding: 15px;
+  background: #0f172a;
+  border-radius: 8px;
+}
+
+.investigation-recommendation strong {
+  color: #38bdf8;
+}
+
+.investigation-recommendation p {
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   SEVERITY
+========================================================= */
+
+.severity-high {
+  font-weight: bold;
+  color: #ef4444;
+}
+
+
+/* =========================================================
+   AI INVESTIGATION PANEL
+========================================================= */
+
+.ai-investigation-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #172554;
+  border: 1px solid #2563eb;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.ai-investigation-panel h3 {
+  margin-top: 0;
+  color: #38bdf8;
+}
+
+.ai-investigation-panel p {
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.ai-confidence {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+
+/* =========================================================
+   ANALYST APPROVAL PANEL
+========================================================= */
+
+.analyst-approval-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #111827;
+  border: 1px solid #475569;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.analyst-approval-panel h3 {
+  margin-top: 0;
+  color: #f8fafc;
+}
+
+.analyst-approval-panel p {
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   APPROVAL BUTTONS
+========================================================= */
+
+.approval-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.approval-buttons button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+
+/* =========================================================
+   APPROVE BUTTON
+========================================================= */
+
+.approve-button {
+  background: #16a34a;
+  color: white;
+}
+
+.approve-button:hover {
+  background: #15803d;
+}
+
+
+/* =========================================================
+   REJECT BUTTON
+========================================================= */
+
+.reject-button {
+  background: #dc2626;
+  color: white;
+}
+
+.reject-button:hover {
+  background: #b91c1c;
+}
+
+
+/* =========================================================
+   APPROVAL RESULT
+========================================================= */
+
+.approval-result {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+
+/* Approved */
+
+.approval-result.approved {
+  background: #14532d;
+  color: #86efac;
+}
+
+
+/* Rejected */
+
+.approval-result.rejected {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+
+/* =========================================================
+   INVESTIGATE WITH AI BUTTON
+========================================================= */
+
+.investigate-button {
+  margin-top: 20px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.investigate-button:hover {
+  background: #1d4ed8;
+}
+
+.investigate-button:disabled {
+  background: #64748b;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   INVESTIGATION ERROR
+========================================================= */
+
+.investigation-error {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #7f1d1d;
+  color: #fecaca;
+  border: 1px solid #991b1b;
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   BACKEND INVESTIGATION RESULT
+========================================================= */
+
+.backend-result-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: #0f172a;
+  border: 1px solid #2563eb;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.backend-result-panel h3 {
+  margin-top: 0;
+  color: #38bdf8;
+}
+
+.backend-result-panel p {
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+
+/* =========================================================
+   BUTTON DISABLED STATE
+========================================================= */
+
+.approval-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   RESPONSIVE DESIGN
+========================================================= */
+
+@media (max-width: 768px) {
+
+  .attack-graph-container {
+    padding: 10px;
+  }
+
+  .cytoscape-graph {
+    height: 400px;
+  }
+
+  .selected-node-panel {
+    padding: 15px;
+  }
+
+  .ai-investigation-panel,
+  .analyst-approval-panel,
+  .backend-result-panel {
+    padding: 15px;
+  }
+
+  .approval-buttons {
+    flex-direction: column;
+  }
+
+  .approval-buttons button {
+    width: 100%;
+  }
+
+  .investigate-button {
+    width: 100%;
+  }
+}

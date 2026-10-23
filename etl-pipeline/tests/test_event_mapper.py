@@ -78,6 +78,72 @@ class TestEventMapper(unittest.TestCase):
         self.assertEqual(status, "mapped")
         self.assertNotIn("process", ev)
 
+    def test_host_normalization_fqdn(self):
+        osq1 = copy.deepcopy(OSQUERY_DATA[0])
+        osq1["hostIdentifier"] = "PROD-WEB-01.corp.example.com"
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        raw["agent"]["name"] = "prod-web-01"
+        status, ev, att = map_wazuh_alert(raw, [osq1])
+        self.assertEqual(status, "mapped")
+        self.assertIn("process", ev)
+        self.assertEqual(ev["host"]["hostname"], "prod-web-01")
+
+    def test_host_normalization_ipv4(self):
+        osq1 = copy.deepcopy(OSQUERY_DATA[0])
+        osq1["hostIdentifier"] = "192.168.1.100"
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        raw["agent"]["name"] = "192.168.1.100"
+        status, ev, att = map_wazuh_alert(raw, [osq1])
+        self.assertEqual(status, "mapped")
+        self.assertIn("process", ev)
+        self.assertEqual(ev["host"]["hostname"], "192.168.1.100")
+
+    def test_host_normalization_none_and_numbers(self):
+        osq1 = copy.deepcopy(OSQUERY_DATA[0])
+        osq1["hostIdentifier"] = None
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        raw["agent"]["name"] = 12345
+        status, ev, att = map_wazuh_alert(raw, [osq1])
+        self.assertEqual(status, "mapped")
+        self.assertNotIn("process", ev)
+
+    def test_host_normalization_collision(self):
+        # Two different hosts with the same first label but different domains
+        # are both normalised to the same name and thus match
+        osq1 = copy.deepcopy(OSQUERY_DATA[0])
+        osq1["hostIdentifier"] = "DB-SERVER.us-east.example.com"
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        raw["agent"]["name"] = "DB-SERVER.eu-west.example.com"
+        status, ev, att = map_wazuh_alert(raw, [osq1])
+        self.assertEqual(status, "mapped")
+        self.assertIn("process", ev)
+
+    def test_no_match_logging(self):
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        alert_id = "wazuh-001-100201-1790929805780"
+        agent_name = "prod-web-01"
+
+        with self.assertLogs("event_mapper", level="INFO") as cm:
+            status, ev, att = map_wazuh_alert(raw, [])
+
+        self.assertEqual(status, "mapped")
+        self.assertEqual(len(cm.output), 1)
+        self.assertIn("No osquery match for alert.", cm.output[0])
+        self.assertIn(f"alert_id={alert_id}", cm.output[0])
+        self.assertIn(f"host={agent_name}", cm.output[0])
+        self.assertNotIn("bash -i", cm.output[0])
+
+    def test_match_logging(self):
+        raw = copy.deepcopy(WAZUH_DATA[2])
+        osq1 = copy.deepcopy(OSQUERY_DATA[0])
+
+        with self.assertLogs("event_mapper", level="INFO") as cm:
+            status, ev, att = map_wazuh_alert(raw, [osq1])
+
+        self.assertEqual(status, "mapped")
+        self.assertTrue(any("Attached process to alert" in log for log in cm.output))
+        self.assertFalse(any("No osquery match for alert." in log for log in cm.output))
+
     def test_different_command(self):
         osq1 = copy.deepcopy(OSQUERY_DATA[0])
         osq1["columns"]["cmdline"] = "different command"
