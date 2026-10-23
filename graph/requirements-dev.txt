@@ -1,0 +1,5 @@
+pytest
+httpx
+neo4j
+fastapi
+pydantic

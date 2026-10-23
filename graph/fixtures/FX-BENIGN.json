@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "alert": {"id": "FX-BENIGN-01", "level": 2, "name": "System Update", "timestamp": 1790928940000, "mitre": []},
+      "host": {"hostname": "WIN-DESK-05", "ip": "10.0.0.50", "os": "Windows"},
+      "user": {"username": "jdoe", "admin": false},
+      "process": {
+        "pid": 5510, "start_time": 1790928940000, "name": "wuauclt.exe",
+        "args": "wuauclt.exe /ReportNow"
+      },
+      "files": [{"path": "C:\\Windows\\System32\\drivers\\etc\\hosts", "op": "read"}]
+    }
+  ]
+}

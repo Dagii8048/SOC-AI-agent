@@ -63,7 +63,10 @@ def fetch_graph_context(state: AgentState):
         "relationships": ["Bob OWNS powershell", "powershell CONNECTED_TO 5.6.7.8"],
         "matched_patterns": ["P-001 (Phishing)", "P-004 (C2 Beaconing)"]
     }
-    return {"graph_context": mock_graph}
+    graph_str = json.dumps(mock_graph)
+    truncated_graph_str = graph_str[:2000]  # Max 2000 characters
+
+    return {"graph_context": truncated_graph_str}
 
 def fetch_rag_context(state: AgentState):
     print(f"[AGENT] Retrieving RAG context from Qdrant...")
@@ -75,6 +78,7 @@ def fetch_rag_context(state: AgentState):
 def generate_llm_briefing(state: AgentState):
     print(f"[AGENT] Generating LLM Briefing via Ollama...")
     
+    ml_confidence = state['fp_prediction']['confidence']
     if state['fp_prediction']['auto_close']:
         print("[AGENT] Auto-closing alert (FP Classifier confidence > 95%)")
         return {"final_briefing": {"summary": "AUTO-CLOSED: Model predicted benign."}}

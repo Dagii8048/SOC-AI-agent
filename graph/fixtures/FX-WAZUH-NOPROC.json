@@ -1,0 +1,22 @@
+{
+  "events": [
+    {
+      "alert": {
+        "id": "FX-WAZUH-100",
+        "level": 8,
+        "name": "Host Integrity Failure",
+        "timestamp": 1790930000000,
+        "mitre": []
+      },
+      "host": {
+        "hostname": "prod-web-01",
+        "ip": "10.0.0.10",
+        "os": "Linux"
+      },
+      "user": {
+        "username": "root",
+        "admin": true
+      }
+    }
+  ]
+}
