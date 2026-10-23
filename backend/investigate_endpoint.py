@@ -59,7 +59,7 @@ def get_investigation_result(task_id: str):
     if result.state == "PENDING":
         return {"task_id": task_id, "status": "processing"}
     elif result.state == "FAILURE":
-        raise HTTPException(status_code=500, detail=str(result.result))
+        raise HTTPException(status_code=500, detail=f"{type(result.result).__name__}: {result.result}")
     elif result.state == "SUCCESS":
         if result.result.get("found") is False:
             raise HTTPException(status_code=404, detail=f"Alert {result.result['alert_id']} not found")
