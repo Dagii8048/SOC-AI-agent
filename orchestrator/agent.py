@@ -7,6 +7,7 @@ import json
 import urllib.request
 import urllib.error
 import sys
+import socket
 from typing import TypedDict, Optional
 
 from pathlib import Path
@@ -19,6 +20,19 @@ sys.path.append(ml_rag_path)
 from classifier_inference import FPClassifier
 from rag_pipeline import search_similar
 from langgraph.graph import StateGraph, END
+
+# ---------------------------------------------------------------------------
+# Ollama settings come from .env (see .env.example), not from the code.
+# ---------------------------------------------------------------------------
+def _int_env(name, default):
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_TIMEOUT = _int_env("OLLAMA_TIMEOUT_SECONDS", 120)
 
 # ---------------------------------------------------------------------------
 # 1. DEFINE THE LANGGRAPH STATE
@@ -56,17 +70,16 @@ def check_false_positive(state: AgentState):
     return {"fp_prediction": result}
 
 def fetch_graph_context(state: AgentState):
-    print(f"[AGENT] Fetching Neo4j graph context (Mocked)...")
-    # In reality, you'd query Neo4j here using Amir's Cypher
-    mock_graph = {
-        "nodes": ["User:Bob (Admin)", "Process:powershell.exe", "Network:5.6.7.8"],
-        "relationships": ["Bob OWNS powershell", "powershell CONNECTED_TO 5.6.7.8"],
-        "matched_patterns": ["P-001 (Phishing)", "P-004 (C2 Beaconing)"]
-    }
-    graph_str = json.dumps(mock_graph)
-    truncated_graph_str = graph_str[:2000]  # Max 2000 characters
-    
-    return {"graph_context": truncated_graph_str}
+    # The caller (backend/tasks.py) passes the real investigation result in
+    # state["graph_context"]. We keep it exactly as given: no mock data and
+    # no cutting it short. The caller decides how much to send.
+    graph_context = state.get("graph_context")
+    if graph_context:
+        print("[AGENT] Using the graph context provided by the caller.")
+        return {"graph_context": graph_context}
+
+    print("[AGENT] No graph context was provided for this alert.")
+    return {"graph_context": {"note": "No graph data was provided for this alert."}}
 
 def fetch_rag_context(state: AgentState):
     print(f"[AGENT] Retrieving RAG context from Qdrant...")
@@ -112,9 +125,9 @@ def generate_llm_briefing(state: AgentState):
     Output ONLY valid JSON.
     """
 
-    url = "http://localhost:11434/api/generate"
+    url = f"{OLLAMA_HOST}/api/generate"
     data = {
-        "model": "llama3.1:8b",
+        "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False,
         "format": "json"
@@ -127,13 +140,19 @@ def generate_llm_briefing(state: AgentState):
     )
 
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as response:
             result = json.loads(response.read().decode('utf-8'))
             llm_output = result['response']
             parsed_json = json.loads(llm_output)
             return {"final_briefing": parsed_json}
             
+    except (TimeoutError, socket.timeout):
+        print(f"[ERROR] Ollama did not answer within {OLLAMA_TIMEOUT} seconds.")
+        return {"final_briefing": {"error": f"Ollama timed out after {OLLAMA_TIMEOUT} seconds."}}
     except urllib.error.URLError as e:
+        if isinstance(e.reason, (TimeoutError, socket.timeout)):
+            print(f"[ERROR] Ollama did not answer within {OLLAMA_TIMEOUT} seconds.")
+            return {"final_briefing": {"error": f"Ollama timed out after {OLLAMA_TIMEOUT} seconds."}}
         print(f"[ERROR] Could not connect to Ollama: {e}")
         return {"final_briefing": {"error": "Ollama is not running."}}
     except json.JSONDecodeError:
@@ -178,7 +197,11 @@ if __name__ == "__main__":
         "alert_id": test_alert["alert_id"],
         "alert_type": test_alert["alert_type"],
         "severity": test_alert["severity"],
-        "description": test_alert["description"]
+        "description": test_alert["description"],
+        "graph_context": {
+            "matched_patterns": [{"id": "P-004", "name": "C2 Beaconing", "mitre": "T1071.001"}],
+            "kill_chain_detected": False,
+        },
     }
     
     result = app.invoke(initial_state)
