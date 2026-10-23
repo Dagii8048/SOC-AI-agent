@@ -43,7 +43,7 @@ def _load_alert_fields(driver, alert_id: str) -> dict:
     return {"name": name, "severity": severity}
 
 
-def _generate_briefing(driver, alert_id: str):
+def _generate_briefing(driver, alert_id: str, result: dict):
     """Ask Teferi's LangGraph agent for the analyst briefing."""
     try:
         fields = _load_alert_fields(driver, alert_id)
@@ -61,11 +61,21 @@ def _generate_briefing(driver, alert_id: str):
         finally:
             os.chdir(previous_dir)
 
+        # The real investigation result goes to the agent as its graph data.
+        graph_context = {
+            "alert": {"id": alert_id, "name": fields["name"], "severity": fields["severity"]},
+            "confidence": result["confidence"],
+            "matched_patterns": result["matched_patterns"],
+            "kill_chain_detected": result["kill_chain_detected"],
+            "kill_chain_name": result["kill_chain_name"],
+        }
+
         final_state = agent.app.invoke({
             "alert_id": alert_id,
             "alert_type": fields["name"],
             "severity": fields["severity"],
             "description": fields["name"],  # Alert nodes have no separate description yet
+            "graph_context": graph_context,
         })
         return final_state.get("final_briefing")
     except Exception as exc:  # noqa: BLE001 - we want ANY failure reported, not crashed
@@ -82,7 +92,7 @@ def investigate_alert_task(alert_id: str):
             return {"found": False, "alert_id": alert_id}
 
         llm_invoked = result["confidence"] != "LOW"
-        briefing = _generate_briefing(driver, alert_id) if llm_invoked else None
+        briefing = _generate_briefing(driver, alert_id, result) if llm_invoked else None
 
         return {
             "found": True,
