@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Header, Request, Depends, HTTPException, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, conint, constr, ValidationError, field_validator
-from typing import List, Optional, Dict, Any, Literal
+from typing import Annotated, List, Optional, Dict, Any, Literal
+from pydantic import BeforeValidator
 import os
 import hmac
 import logging
@@ -10,10 +11,42 @@ from graph_loader import load_event
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+def truncate_head_tail(value, limit):
+    """Shorten an over-long string to at most `limit` characters.
+
+    Keeps the START and the END and puts a marker in the middle. The END must
+    be kept: in long encoded commands the payload is usually at the end.
+    Non-strings and strings within the limit are returned unchanged.
+    """
+    if not isinstance(value, str) or len(value) <= limit:
+        return value
+    # len(value) is an upper bound for the number removed, so the marker built
+    # here is never shorter than the final one and the result fits in `limit`.
+    keep = limit - len(f" ...[truncated {len(value)} chars]... ")
+    removed = len(value) - keep
+    marker = f" ...[truncated {removed} chars]... "
+    head = keep // 2
+    tail = keep - head
+    return value[:head] + marker + value[len(value) - tail:]
+
+def _shorten(limit):
+    return BeforeValidator(lambda v: truncate_head_tail(v, limit))
+
+# Evidence fields: too long -> shortened (head + tail), event still accepted.
+# Sending a huge value must never be a way to get an event rejected.
+Text256 = Annotated[str, _shorten(256)]
+Text1024 = Annotated[str, _shorten(1024)]
+Text4096 = Annotated[str, _shorten(4096)]
+
+# Identity fields (alert id, hostname, username, destination IP, host lists)
+# are NOT shortened: a changed value would point at a different node.
+# Too long -> the event is rejected, as before.
+
+
 class AlertSchema(BaseModel):
     id: constr(max_length=256)
     level: conint(ge=0, le=15) = 0
-    name: constr(max_length=256) = ""
+    name: Text256 = ""
     timestamp: int
     mitre: List[str] = Field(default_factory=list)
 
@@ -25,12 +58,12 @@ class AlertSchema(BaseModel):
 
 class HostSchema(BaseModel):
     hostname: constr(max_length=256)
-    ip: Optional[constr(max_length=256)] = None
-    os: Optional[constr(max_length=256)] = None
+    ip: Optional[Text256] = None
+    os: Optional[Text256] = None
 
 class UserSchema(BaseModel):
     username: constr(max_length=256)
-    domain: Optional[constr(max_length=256)] = None
+    domain: Optional[Text256] = None
     admin: Optional[bool] = None
     failed_logins: Optional[int] = None
     last_failed: Optional[int] = None
@@ -38,36 +71,36 @@ class UserSchema(BaseModel):
 class ProcessChildSchema(BaseModel):
     pid: int
     start_time: Optional[int] = None
-    name: constr(max_length=256) = ""
-    args: Optional[constr(max_length=4096)] = None
+    name: Text256 = ""
+    args: Optional[Text4096] = None
 
 class ProcessParentSchema(BaseModel):
     pid: int
     start_time: Optional[int] = None
-    name: constr(max_length=256) = ""
-    path: Optional[constr(max_length=1024)] = None
-    args: Optional[constr(max_length=4096)] = None
-    hash: Optional[constr(max_length=256)] = None
+    name: Text256 = ""
+    path: Optional[Text1024] = None
+    args: Optional[Text4096] = None
+    hash: Optional[Text256] = None
 
 class ProcessSchema(BaseModel):
     pid: int
     start_time: Optional[int] = None
-    name: constr(max_length=256) = ""
-    path: Optional[constr(max_length=1024)] = None
-    args: Optional[constr(max_length=4096)] = None
-    hash: Optional[constr(max_length=256)] = None
+    name: Text256 = ""
+    path: Optional[Text1024] = None
+    args: Optional[Text4096] = None
+    hash: Optional[Text256] = None
     parent: Optional[ProcessParentSchema] = None
     children: List[ProcessChildSchema] = Field(default_factory=list)
 
 class NetworkSchema(BaseModel):
-    src_ip: Optional[constr(max_length=256)] = None
+    src_ip: Optional[Text256] = None
     dest_ip: constr(max_length=256)
     dest_port: int
-    protocol: constr(max_length=256)
+    protocol: Text256
 
 class FileSchema(BaseModel):
-    path: constr(max_length=1024)
-    hash: Optional[constr(max_length=256)] = None
+    path: Text1024
+    hash: Optional[Text256] = None
     size: Optional[int] = None
     op: Literal["read", "write"]
 
@@ -150,7 +183,9 @@ def ingest_events(
                     if "timestamp must be epoch milliseconds" in err.get("msg", ""):
                         err_msg = "timestamp must be epoch milliseconds"
 
-                logger.warning(f"Validation error on event {i}: {ve}")
+                # Log only WHERE it failed and WHY (type), never the input value.
+                where = [".".join(str(x) for x in err.get("loc", ())) + ":" + err.get("type", "") for err in ve.errors()]
+                logger.warning("Validation error on event %s: %s", i, where)
                 rejected.append({"index": i, "reason": err_msg})
             except Exception as e:
                 logger.error(f"Processing error on event {i}: {e}")

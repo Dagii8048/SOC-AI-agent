@@ -12,7 +12,8 @@
 
 **Important Data Constraints:**
 - All timestamps MUST be epoch milliseconds.
-- String fields are length-capped internally during ingestion: `id` (256), `name` (256), `path` (1024), `args` (4096), `hash` (256), `hostname` (256), `username` (256), `ip` (256).
+- Over-long text is **shortened, not rejected**, for evidence fields: `name` (256), `path` (1024), `args` (4096), `hash` (256), `ip` / `os` / `domain` / `protocol` (256). The start and the end are kept and ` ...[truncated N chars]... ` is put in the middle, so the total is at most the limit. The event is still accepted.
+- Identity fields are **never** shortened (a changed value would be a different node). If longer than 256 the event is rejected with `Invalid event`: `alert.id`, `host.hostname`, `user.username`, `network.dest_ip`, and each item of `logged_in_hosts` / `scanned_hosts`.
 
 ## Graph Nodes and Relationships Created
 - `Alert` -[:TRIGGERED_BY]-> `Process`
