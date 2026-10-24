@@ -23,7 +23,7 @@ An intelligent, locally-hosted SOC assistant that ingests security alerts, recon
 **Prerequisites:** Docker Desktop, Python 3.12, Node.js, and [Ollama](https://ollama.com/) (`ollama pull llama3.1:8b`).
 
 1. **Start DBs:** `docker compose up -d`
-2. **Load Graph:** `cd etl && python quick_etl.py`
+2. **Load Graph:** `cd etl-pipeline && python quick_etl.py`
 3. **Load RAG:** `cd ml-rag && python rag_pipeline.py`
 4. **Run Agent (CLI):** `cd orchestrator && python agent.py`
 5. **Run App:** Start `uvicorn main:app` (backend) and `npm run dev` (frontend).
