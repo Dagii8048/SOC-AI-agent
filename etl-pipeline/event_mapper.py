@@ -15,6 +15,137 @@ def normalize_host(name: Any) -> str:
         return name
     return name.split(".", 1)[0]
 
+
+WINDOW_MS = 900000  # 900 seconds
+MAX_NETWORK = 100   # safety cap on network entries per event
+MAX_FILES = 100     # safety cap on file entries per event
+
+_PROTOCOLS = {"6": "TCP", "17": "UDP", "tcp": "TCP", "udp": "UDP"}
+_FILE_OPS = {
+    "CREATED": "write",
+    "UPDATED": "write",
+    "MOVED_TO": "write",
+    "ACCESSED": "read",
+    "OPENED": "read",
+}
+
+
+def _to_int(value: Any) -> Optional[int]:
+    """Convert an int or a numeric string to int. bool, floats and other types give None."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _clean_str(value: Any) -> Optional[str]:
+    """Return a stripped non-empty string, otherwise None."""
+    if isinstance(value, str):
+        value = value.strip()
+        if value:
+            return value
+    return None
+
+
+def _split_user(value: Any) -> Optional[Dict[str, str]]:
+    """Turn 'DOMAIN\\user' or 'user' into {"username": ..., "domain": ...}. No username means None."""
+    text = _clean_str(value)
+    if text is None:
+        return None
+    domain = ""
+    username = text
+    if "\\" in text:
+        domain, _, username = text.partition("\\")
+        domain = domain.strip()
+        username = username.strip()
+    if not username:
+        return None
+    user: Dict[str, str] = {"username": username}
+    if domain:
+        user["domain"] = domain
+    return user
+
+
+def _records_for_pid(osquery_records: List[Dict[str, Any]], host: str, pid: int, alert_time: int):
+    """Yield (record, columns) for osquery records of the same host, the same pid, inside the time window."""
+    norm_host = normalize_host(host)
+    if not norm_host:
+        return
+    for rec in osquery_records:
+        if not isinstance(rec, dict):
+            continue
+        if rec.get("action") not in ("added", "snapshot"):
+            continue
+        if normalize_host(rec.get("hostIdentifier")) != norm_host:
+            continue
+        cols = rec.get("columns")
+        if not isinstance(cols, dict):
+            continue
+        if _to_int(cols.get("pid")) != pid:
+            continue
+        osq_time = to_epoch_ms(rec.get("unixTime"))
+        if osq_time is None or abs(osq_time - alert_time) > WINDOW_MS:
+            continue
+        yield rec, cols
+
+
+def _get_network(osquery_records: List[Dict[str, Any]], host: str, pid: int, alert_time: int) -> List[Dict[str, Any]]:
+    """Network entries from process_open_sockets rows of the matched process only."""
+    result: List[Dict[str, Any]] = []
+    seen = set()
+    for _rec, cols in _records_for_pid(osquery_records, host, pid, alert_time):
+        dest_ip = _clean_str(cols.get("remote_address"))
+        dest_port = _to_int(cols.get("remote_port"))
+        if dest_ip is None or dest_port is None or not (1 <= dest_port <= 65535):
+            continue
+        proto_raw = cols.get("protocol")
+        proto_key = str(proto_raw).strip().lower() if isinstance(proto_raw, (str, int)) and not isinstance(proto_raw, bool) else ""
+        protocol = _PROTOCOLS.get(proto_key)
+        if protocol is None:
+            continue
+        entry: Dict[str, Any] = {"dest_ip": dest_ip, "dest_port": dest_port, "protocol": protocol}
+        src_ip = _clean_str(cols.get("local_address"))
+        if src_ip is not None:
+            entry["src_ip"] = src_ip
+        key = (dest_ip, dest_port, protocol, src_ip)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(entry)
+        if len(result) >= MAX_NETWORK:
+            break
+    return result
+
+
+def _get_files(osquery_records: List[Dict[str, Any]], host: str, pid: int, alert_time: int) -> List[Dict[str, Any]]:
+    """File entries only from rows that carry the same pid AND a file action (no pid, no file entry)."""
+    result: List[Dict[str, Any]] = []
+    seen = set()
+    for _rec, cols in _records_for_pid(osquery_records, host, pid, alert_time):
+        action = cols.get("action")
+        if not isinstance(action, str):
+            continue
+        op = _FILE_OPS.get(action.strip().upper())
+        if op is None:
+            continue
+        path = _clean_str(cols.get("target_path")) or _clean_str(cols.get("path"))
+        if path is None:
+            continue
+        key = (path, op)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append({"path": path, "op": op})
+        if len(result) >= MAX_FILES:
+            break
+    return result
+
 def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, command: str, alert_time: int) -> List[Dict[str, Any]]:
     candidates = []
     cmd_stripped = command.strip()
@@ -61,11 +192,16 @@ def _get_osquery_candidates(osquery_records: List[Dict[str, Any]], host: str, co
         if not name_val and isinstance(cols.get("path"), str):
             name_val = cols.get("path").split("/")[-1]
 
+        parent_pid = _to_int(cols.get("parent"))
+        if parent_pid is not None and parent_pid <= 0:
+            parent_pid = None
+
         candidates.append({
             "pid": pid,
             "name": name_val,
             "args": osq_cmd.strip(),
-            "osq_time": osq_time
+            "osq_time": osq_time,
+            "parent": parent_pid
         })
 
     return candidates
@@ -175,6 +311,10 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
     if not isinstance(eventdata, dict):
         eventdata = {}
 
+    user = _split_user(eventdata.get("user")) or _split_user(data.get("dstuser"))
+    if user:
+        event["user"] = user
+
     cmd = eventdata.get("commandLine") or data.get("command")
     attached_info = None
 
@@ -194,10 +334,21 @@ def map_wazuh_alert(raw: Dict[str, Any], osquery_records: List[Dict[str, Any]]) 
                 process_info = {"pid": pid, "args": closest["args"]}
                 if closest["name"]:
                     process_info["name"] = closest["name"]
+                parent_pid = next((c["parent"] for c in sorted(candidates, key=lambda c: abs(c["osq_time"] - timestamp)) if c["pid"] == pid and c["parent"]), None)
+                if parent_pid:
+                    process_info["parent"] = {"pid": parent_pid}
 
                 event["process"] = process_info
 
-                logger.info("Attached process to alert. alert_id=%s, host=%s, pid=%s, command=%s", alert_id, agent_name, pid, closest["args"])
+                network = _get_network(osquery_records, agent_name, pid, timestamp)
+                if network:
+                    event["network"] = network
+                files = _get_files(osquery_records, agent_name, pid, timestamp)
+                if files:
+                    event["files"] = files
+
+                # The command line is not logged on purpose: it can contain secrets.
+                logger.info("Attached process to alert. alert_id=%s, host=%s, pid=%s", alert_id, agent_name, pid)
 
                 attached_info = {
                     "alert_id": alert_id,
