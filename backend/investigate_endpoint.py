@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from celery.result import AsyncResult
 
 import ingest_router  # Amir's ingestion routes, in graph/
+import graph_routes  # GET /alerts and GET /alerts/{id}/graph for the dashboard
 from celery_app import celery_app
 from tasks import investigate_alert_task
 from actions import execute_action
@@ -40,6 +41,7 @@ app.add_middleware(
 )
 
 app.include_router(ingest_router.router)
+app.include_router(graph_routes.router)
 
 
 class InvestigateRequest(BaseModel):

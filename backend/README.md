@@ -92,8 +92,19 @@ Expected for `FX-WIN-100`: `status: complete`, `confidence: CRITICAL`, 5 matched
 | `GET /investigate/{task_id}` | `processing`, then `complete` with the result. 404 if the alert is not in the graph. 500 with the error type and message if the task failed |
 | `POST /ingest/events` | The ETL sends mapped events here. Header `x-api-key` must match `INGEST_API_KEY` (wrong or missing: 401) |
 | `POST /actions/execute` | Body `{"action": "isolate_host", "params": {...}}`. Only whitelisted actions run |
+| `GET /alerts` | The dashboard's alert list: `{"alerts": [{id, name, severity, level, timestamp, hostname}]}`, newest first. Optional `?limit=` (1 to 200, default 50) |
+| `GET /alerts/{alert_id}/graph` | That alert's attack graph in Cytoscape format: `{"nodes": [{"data": ...}], "edges": [{"data": ...}]}`. 404 if the alert is not in the graph |
 
 CORS allows the dashboard at `http://localhost:5173`.
+
+## The dashboard
+
+The React dashboard lives at the repo root (`src/`). It lists the alerts from `GET /alerts`, draws the selected alert's graph from `GET /alerts/{id}/graph`, and runs `POST /investigate` + polling when you press "Investigate with AI". With the API, the worker and Redis running (see above):
+
+    npm install
+    npm run dev
+
+Open exactly http://localhost:5173 (the API only allows that address). To use another API address, create a frontend `.env` with `VITE_API_BASE_URL=http://host:port`.
 
 ## The briefing
 
@@ -115,5 +126,5 @@ The `briefing` field comes from the LangGraph agent in `orchestrator/`. It needs
 
 ## Known limits
 
-- `/investigate` and `/actions/execute` have no authentication yet. Anyone who can reach the API can call them.
+- `/investigate`, `/alerts`, `/alerts/{id}/graph` and `/actions/execute` have no authentication yet. Anyone who can reach the API can call them.
 - Actions go to `SOAR_WEBHOOK_URL`, which is a test site (httpbin) by default, so nothing is really isolated.

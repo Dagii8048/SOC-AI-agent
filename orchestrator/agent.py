@@ -53,8 +53,8 @@ class AgentState(TypedDict):
 print("[INIT] Loading FP Classifier...")
 # Note: We point to the .pkl files in the ml-rag folder
 clf = FPClassifier(
-    model_path="../ml-rag/fp_classifier.pkl", 
-    encoder_path="../ml-rag/alert_type_encoder.pkl"
+    model_path=os.path.join(ml_rag_path, "fp_classifier.pkl"), 
+    encoder_path=os.path.join(ml_rag_path, "alert_type_encoder.pkl")
 )
 
 # ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ def generate_llm_briefing(state: AgentState):
     ## TASK
     Provide a JSON response with exactly these keys:
     - "executive_summary": A 1-sentence plain English explanation.
-    - "threat_level": "CRITICAL", "HIGH", "MEDIUM", or "LOW".
+    - "threat_level": Base this STRICTLY on the matched patterns in the Attack Graph. If a Kill Chain or Critical pattern (like Reverse Shell) is present, you MUST output "CRITICAL".
     - "mitre_techniques": A list of strings (e.g., ["T1059.001"]).
     - "recommendations": A list of up to 3 specific actions.
 

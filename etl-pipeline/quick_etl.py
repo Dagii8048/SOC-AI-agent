@@ -157,8 +157,8 @@ def parse_osquery_entry(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 # --- Temporal Correlation Engine ---
-def correlate_events(events: List[Dict[str, Any]], window_seconds: int = 900) -> List[Dict[str, Any]]:
-    """Groups logs on the same host occurring within a 15-minute window into unified incident stories."""
+def correlate_events(events: List[Dict[str, Any]], window_seconds: int = 1800) -> List[Dict[str, Any]]:
+    """Groups logs on the same host occurring within a 30-minute window into unified incident stories."""
     # Group by host
     hosts = {}
     for ev in events:
