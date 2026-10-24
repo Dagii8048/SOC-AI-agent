@@ -1,0 +1,12 @@
+# Core HTTP requests (used by ETL to send events to the backend)
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# If your ETL scripts validate data using Pydantic
+pydantic>=2.5.0
+
+# If your ETL scripts connect directly to Neo4j (optional, but usually used)
+neo4j>=5.14.0
+
+# Timezone handling (critical for Beka's UTC timestamp fixes)
+pytz>=2023.3

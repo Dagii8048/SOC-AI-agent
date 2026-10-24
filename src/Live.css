@@ -1,0 +1,241 @@
+/* Styles for the parts of the dashboard that show live backend data. */
+
+.panel-pad {
+  padding: 16px 20px;
+  margin: 0;
+}
+
+.empty-note {
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 0;
+}
+
+.error-text {
+  color: #f87171;
+  font-size: 14px;
+  margin: 0;
+}
+
+.status-badge.offline {
+  color: #f87171;
+  background: #450a0a;
+  border: 1px solid #991b1b;
+}
+
+.status-badge.offline .status-dot {
+  background: #f87171;
+}
+
+/* ---------- alert list ---------- */
+
+.alerts-panel {
+  margin-bottom: 20px;
+}
+
+.refresh-button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.refresh-button:hover {
+  background: #334155;
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  color: #e2e8f0;
+  border: 0;
+  border-bottom: 1px solid #1e293b;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.alert-row:hover {
+  background: #1e293b;
+}
+
+.alert-row.active {
+  background: #172554;
+  box-shadow: inset 3px 0 0 #38bdf8;
+}
+
+.alert-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.alert-meta {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.alert-decision {
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ---------- severity colours ---------- */
+
+.sev-pill {
+  min-width: 70px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sev-low {
+  color: #4ade80;
+  background: #052e16;
+}
+
+.sev-medium {
+  color: #facc15;
+  background: #422006;
+}
+
+.sev-high {
+  color: #fb923c;
+  background: #431407;
+}
+
+.sev-critical {
+  color: #f87171;
+  background: #450a0a;
+}
+
+.risk-value.sev-low,
+.risk-value.sev-medium,
+.risk-value.sev-high,
+.risk-value.sev-critical {
+  background: transparent;
+}
+
+.risk-value.sev-low {
+  color: #4ade80;
+}
+
+.risk-value.sev-medium {
+  color: #facc15;
+}
+
+.risk-value.sev-high {
+  color: #fb923c;
+}
+
+.risk-value.sev-critical {
+  color: #f87171;
+}
+
+/* ---------- graph ---------- */
+
+.graph-wrap {
+  position: relative;
+}
+
+.graph-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #94a3b8;
+  text-align: center;
+  pointer-events: none;
+}
+
+.graph-overlay-error {
+  color: #f87171;
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.node-prop code {
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+/* ---------- briefing and decisions ---------- */
+
+.briefing-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.briefing-meta {
+  margin: 8px 0 0;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action-button.isolate {
+  background: #7f1d1d;
+  color: #ffffff;
+}
+
+.decision-note {
+  margin: 14px 20px 18px;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.investigate-button {
+  margin: 16px 20px 20px;
+}
+
+.incident-content .investigation-error {
+  margin: 0 20px 20px;
+}
