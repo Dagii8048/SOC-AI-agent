@@ -31,8 +31,9 @@ An intelligent, locally-hosted SOC assistant that ingests security alerts, recon
 ## 👥 Team
 - **Amir:** Graph Engine (Neo4j, Cypher)
 - **Beka:** ETL Pipeline (Data Mapping, UTC Normalization)
-- **Dagi:** Orchestrator & ML/RAG (LangGraph, XGBoost, Qdrant)
+- **Dagi:** ML/RAG (XGBoost, Qdrant)
 - **Talegeta:** Backend API (FastAPI)
+- **Teferi:** Orchestrator (LangGraph)
 - **Wakjira:** Frontend Dashboard (React, Cytoscape)
 
 ## ⚠️ MVP Limitations
