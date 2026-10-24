@@ -147,7 +147,14 @@ def get_driver():
         uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         user = os.environ.get("NEO4J_USER", "neo4j")
         password = os.environ.get("NEO4J_PASSWORD", "password")
-        _neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
+        # Aura closes idle connections without telling us. Test a connection before
+        # reusing it if it has been idle for 30s, and replace old ones every 5 minutes.
+        _neo4j_driver = GraphDatabase.driver(
+            uri,
+            auth=(user, password),
+            liveness_check_timeout=30,
+            max_connection_lifetime=300,
+        )
     return _neo4j_driver
 
 def close_driver():
