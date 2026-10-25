@@ -118,7 +118,7 @@ def generate_llm_briefing(state: AgentState):
     ## TASK
     Provide a JSON response with exactly these keys:
     - "executive_summary": A 1-sentence plain English explanation.
-    - "threat_level": Base this STRICTLY on the matched patterns in the Attack Graph. If a Kill Chain or Critical pattern (like Reverse Shell) is present, you MUST output "CRITICAL".
+    - "threat_level": You MUST output the SAME threat level as the ML Classifier provided above. Do not change it.
     - "mitre_techniques": A list of strings (e.g., ["T1059.001"]).
     - "recommendations": A list of up to 3 specific actions.
 
