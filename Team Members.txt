@@ -1,0 +1,9 @@
+Title - RAG Based SOC AI Agent
+Team Members
+
+1. Amir Nusbah - CTC-4308-26
+2. Bekan Bayisa - CTC-2023-26
+3. Dagmawi Minale - CTC-3124-26
+4. Talegeta belay - CTC-2786-26
+5. Teferi Mulatu - CTC-4675-26
+6. Wakjira Assefa - CTC-4520-26
