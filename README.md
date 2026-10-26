@@ -1,3 +1,4 @@
+<img width="1280" height="720" alt="RAG based SOC AI agent-Cover" src="https://github.com/user-attachments/assets/52cb5bdb-079e-45a6-ba93-abea9ef79e23" />
 # Graph-Based RAG SOC AI Agent 🛡️
 
 An intelligent, locally-hosted SOC assistant that ingests security alerts, reconstructs attack chains using Neo4j, and uses RAG + a local LLM to generate actionable analyst briefings.
