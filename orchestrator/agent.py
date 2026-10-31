@@ -115,10 +115,14 @@ def generate_llm_briefing(state: AgentState):
     ## SIMILAR PAST INCIDENTS (RAG)
     {rag_text}
 
+    ## MACHINE LEARNING CLASSIFICATION
+    The XGBoost classifier predicts: {state['fp_prediction']['prediction']}
+    The ML Confidence is: {ml_confidence}
+
     ## TASK
     Provide a JSON response with exactly these keys:
     - "executive_summary": A 1-sentence plain English explanation.
-    - "threat_level": You MUST output the SAME threat level as the ML Classifier provided above. Do not change it.
+    - "threat_level": Base this on the ML Classification provided above. If the ML predicts "MALICIOUS", use "HIGH" or "CRITICAL". If "BENIGN", use "LOW".
     - "mitre_techniques": A list of strings (e.g., ["T1059.001"]).
     - "recommendations": A list of up to 3 specific actions.
 
