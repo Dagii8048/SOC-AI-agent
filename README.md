@@ -140,14 +140,14 @@ Once all services are running, open the dashboard:
 
 ## 👥 Team
 
-| Team Member | Responsibility | Technologies |
-|---|---|---|
-| **Amir** | Graph Engine | Neo4j, Cypher |
-| **Beka** | ETL Pipeline | Data Mapping, UTC Normalization |
-| **Dagmawi** | ML/RAG | XGBoost, Qdrant |
-| **Teferi** | Orchestrator | LangGraph |
-| **Talegeta** | Backend API | FastAPI, Celery |
-| **Wakjira** | Frontend Dashboard | React, Cytoscape.js |
+| Team Member | CTC ID | Responsibility | Technologies |
+|---|---|---|---|
+| **Amir Nusba** | CTC-4308-26 | Graph Engine | Neo4j, Cypher |
+| **Bekan Bayisa** | CTC-2023-26 | ETL Pipeline | Data Mapping, UTC Normalization |
+| **Dagmawi Minale** | CTC-3124-26 | ML/RAG | XGBoost, Qdrant |
+| **Teferi Mulatu** | CTC-4675-26 | Orchestrator | LangGraph |
+| **Talegeta Belay** | CTC-2786-26 | Backend API | FastAPI, Celery |
+| **Wakjira Asefa** | CTC-4520-26 | Frontend Dashboard | React, Cytoscape.js |
 
 ## ⚠️ MVP Limitations
 
