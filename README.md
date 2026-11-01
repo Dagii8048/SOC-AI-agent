@@ -144,7 +144,8 @@ Once all services are running, open the dashboard:
 |---|---|---|
 | **Amir** | Graph Engine | Neo4j, Cypher |
 | **Beka** | ETL Pipeline | Data Mapping, UTC Normalization |
-| **Dagi** | ML/RAG & Orchestrator | XGBoost, Qdrant, LangGraph |
+| **Dagmawi** | ML/RAG | XGBoost, Qdrant |
+| **Teferi** | Orchestrator | LangGraph |
 | **Talegeta** | Backend API | FastAPI, Celery |
 | **Wakjira** | Frontend Dashboard | React, Cytoscape.js |
 
